@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Up Wealth</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'San Francisco', sans-serif;
+    background: #f5f4f1;
+    color: #1a1a18;
+    min-height: 100vh;
+  }
+
+  /* ─── Dark mode ──────────────────────────────────────────────────────────── */
+  @media (prefers-color-scheme: dark) {
+    body { background: #111110; color: #e8e6df; }
+    .header { background: #111110; border-bottom: 0.5px solid rgba(255,255,255,0.08); }
+    .setup-wrap { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
+    input { background: #242422; border-color: rgba(255,255,255,0.12); color: #e8e6df; }
+    input::placeholder { color: #555; }
+    .hint { color: #666; }
+    .stat-card { background: #242422; }
+    .chart-card { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
+    .account-card { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
+    .error-box { background: rgba(220,60,40,0.12); border-color: rgba(220,60,40,0.25); }
+    .error-title { color: #ff7c6a; }
+    .error-msg { color: #cc6055; }
+    .muted { color: #888; }
+    .section-label { color: #555; }
+    .cache-badge { background: #242422; color: #666; }
+    .refresh-btn { border-color: rgba(255,255,255,0.2); color: #bbb; }
+    .refresh-btn:hover { background: rgba(255,255,255,0.06); }
+    .accounts-divider { border-color: rgba(255,255,255,0.07); }
+    .disconnect-btn { color: #aaa; }
+    .header-title { color: #e8e6df; }
+  }
+
+  /* ─── Header ─────────────────────────────────────────────────────────────── */
+  .header {
+    background: #fff;
+    border-bottom: 0.5px solid rgba(0,0,0,0.08);
+    padding: 11px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  @media (min-width: 768px) {
+    .header { padding: 11px 32px; }
+  }
+
+  .logo {
+    width: 30px; height: 30px;
+    background: #FF6B35;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo svg {
+    width: 15px; height: 15px;
+    stroke: white; fill: none;
+    stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .header-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #1a1a18; }
+
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  .refresh-btn {
+    display: none;
+    align-items: center; gap: 5px;
+    background: none;
+    border: 1px solid rgba(0,0,0,0.22);
+    border-radius: 8px;
+    font-size: 12px; color: #444;
+    padding: 5px 10px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .refresh-btn:hover { background: rgba(0,0,0,0.04); }
+  .refresh-btn.visible { display: flex; }
+  .refresh-btn .spin { display: inline-block; animation: spin 0.7s linear infinite; }
+
+  .disconnect-btn {
+    background: none; border: none;
+    font-size: 13px; color: #555;
+    padding: 6px 0; cursor: pointer;
+  }
+
+  /* ─── Layout ─────────────────────────────────────────────────────────────── */
+  .content {
+    padding: 20px 16px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 768px) {
+    .content { max-width: 1300px; padding: 28px 32px; }
+    #setup, #loading, #error-screen { max-width: 460px; margin: 0 auto; }
+  }
+
+  /* ─── Setup ──────────────────────────────────────────────────────────────── */
+  .setup-wrap {
+    background: #fff;
+    border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .setup-label {
+    font-size: 12px; font-weight: 500; color: #888;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    display: block; margin-bottom: 10px;
+  }
+
+  input {
+    width: 100%; padding: 13px 14px;
+    border: 1px solid rgba(0,0,0,0.12); border-radius: 10px;
+    font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
+    background: #fafaf8; outline: none; -webkit-appearance: none;
+  }
+
+  input:focus { border-color: #FF6B35; box-shadow: 0 0 0 3px rgba(255,107,53,0.12); }
+
+  .hint { font-size: 12px; color: #999; margin-top: 10px; line-height: 1.5; }
+  .hint a { color: #FF6B35; text-decoration: none; }
+
+  .privacy-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 500; color: #27ae60;
+    background: rgba(39,174,96,0.08); border: 0.5px solid rgba(39,174,96,0.25);
+    border-radius: 6px; padding: 4px 9px; margin-top: 12px;
+  }
+  .privacy-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+  @media (prefers-color-scheme: dark) {
+    .privacy-badge { background: rgba(39,174,96,0.1); border-color: rgba(39,174,96,0.2); color: #2ecc71; }
+  }
+
+  .disclaimer {
+    font-size: 11px; color: #bbb; text-align: center;
+    margin-top: 14px; line-height: 1.5;
+  }
+  .disclaimer a { color: #bbb; text-decoration: underline; text-underline-offset: 2px; }
+
+  @media (prefers-color-scheme: dark) {
+    .disclaimer { color: #555; }
+    .disclaimer a { color: #555; }
+  }
+
+  .connect-btn {
+    width: 100%; padding: 14px;
+    background: #FF6B35; color: white;
+    border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer; letter-spacing: -0.01em;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .connect-btn:active { background: #e85e2b; transform: scale(0.99); }
+
+  /* ─── Loading ─────────────────────────────────────────────────────────────── */
+  .loading-wrap { text-align: center; padding: 60px 20px; }
+
+  .spinner {
+    width: 36px; height: 36px;
+    border: 2.5px solid rgba(255,107,53,0.2); border-top-color: #FF6B35;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text { font-size: 14px; color: #888; }
+
+  /* ─── Error ───────────────────────────────────────────────────────────────── */
+  .error-box {
+    background: #fff0ee; border: 0.5px solid rgba(220,60,40,0.2);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  }
+  .error-title { font-size: 14px; font-weight: 600; color: #c0392b; margin-bottom: 5px; }
+  .error-msg { font-size: 13px; color: #a93226; line-height: 1.5; }
+  .back-btn { background: none; border: none; font-size: 14px; color: #888; padding: 8px 0; cursor: pointer; }
+
+  /* ─── Dashboard ───────────────────────────────────────────────────────────── */
+  .dash-main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (min-width: 768px) {
+    .dash-main { flex-direction: row; align-items: flex-start; gap: 28px; }
+    .dash-left { flex: 1; min-width: 0; }
+    .dash-right { width: 320px; flex-shrink: 0; }
+  }
+
+  @media (min-width: 1024px) {
+    .dash-right { width: 340px; }
+  }
+
+  @media (min-width: 1400px) {
+    .dash-right { width: 360px; }
+  }
+
+  .dash-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .date-range { font-size: 12px; color: #888; }
+
+  .cache-badge {
+    font-size: 11px; color: #aaa; background: #eeecea;
+    border-radius: 6px; padding: 3px 8px;
+  }
+
+  /* Stats */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-bottom: 16px;
+  }
+
+  .stat-card { background: #eeecea; border-radius: 12px; padding: 12px; }
+
+  .stat-label {
+    font-size: 10px; font-weight: 600; color: #888;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px;
+  }
+
+  .stat-value { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+
+  /* Chart */
+  .chart-card {
+    background: #fff; border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 16px; padding: 16px;
+  }
+
+  .chart-wrap { position: relative; width: 100%; height: 200px; }
+
+  @media (min-width: 768px) {
+    .chart-wrap { height: 300px; }
+  }
+
+  @media (min-width: 1024px) {
+    .chart-wrap { height: 320px; }
+  }
+
+  @media (min-width: 1400px) {
+    .chart-wrap { height: 360px; }
+  }
+
+  /* Accounts */
+  .section-label {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 10px; display: block;
+  }
+
+  .accounts-divider {
+    display: none;
+    border: none; border-top: 0.5px solid rgba(0,0,0,0.07);
+    margin-bottom: 10px;
+  }
+
+  @media (min-width: 768px) {
+    .accounts-divider { display: block; }
+    .section-label { margin-top: 4px; }
+  }
+
+  .accounts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  @media (min-width: 768px) {
+    .dash-right .accounts-grid { grid-template-columns: 1fr; }
+  }
+
+  .account-card {
+    background: #fff; border: 0.5px solid rgba(0,0,0,0.08);
+    border-radius: 12px; padding: 13px 14px;
+  }
+
+  .account-name {
+    font-size: 11px; color: #888;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+
+  .account-balance { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+
+  .muted { color: #888; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+  </div>
+  <span class="header-title">Up Wealth</span>
+  <div class="header-right">
+    <button class="refresh-btn" id="refresh-btn" onclick="refresh()">↻ Refresh</button>
+    <button class="disconnect-btn hidden" id="disconnect-btn" onclick="reset()">Disconnect</button>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Setup -->
+  <div id="setup">
+    <div style="margin-bottom:20px;">
+      <p style="font-size:15px;line-height:1.6;color:#555;margin-bottom:0;">
+        See your total Up balance charted over time, reconstructed from your transaction history. Your token stays on your device.
+      </p>
+    </div>
+    <div class="setup-wrap">
+      <label class="setup-label" for="token-input">Personal Access Token</label>
+      <input type="password" id="token-input" placeholder="up:yeah:xxxxxxxxxxxx" autocomplete="off" autocorrect="off" spellcheck="false">
+      <p class="hint">Get yours at <a href="https://api.up.com.au">api.up.com.au</a> or in the Up app under <strong>Settings → Data Sharing</strong></p>
+      <div class="privacy-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Your token never leaves your device
+      </div>
+    </div>
+    <button class="connect-btn" onclick="connect()">Connect to Up →</button>
+    <p class="disclaimer">Unofficial tool — not affiliated with or endorsed by Up Banking.<br>Use is subject to the <a href="https://api.up.com.au" target="_blank">Up API terms</a>.</p>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="hidden">
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loading-msg">Connecting…</p>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-screen" class="hidden">
+    <div class="error-box">
+      <p class="error-title" id="err-title">Something went wrong</p>
+      <p class="error-msg" id="err-msg"></p>
+    </div>
+    <button class="back-btn" onclick="goBack()">← Try again</button>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+    <div class="dash-main">
+
+      <div class="dash-left">
+        <div class="dash-header">
+          <p class="date-range" id="date-range"></p>
+          <span class="cache-badge hidden" id="cache-badge"></span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <p class="stat-label">Balance</p>
+            <p class="stat-value" id="stat-current"></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Change</p>
+            <p class="stat-value" id="stat-change"></p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">Accounts</p>
+            <p class="stat-value" id="stat-accounts"></p>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-wrap">
+            <canvas id="wealth-chart" role="img" aria-label="Line chart of Up Bank balance over time">Balance history</canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-right">
+        <hr class="accounts-divider">
+        <span class="section-label">Accounts</span>
+        <div class="accounts-grid" id="accounts-grid"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const BASE = 'https://api.up.com.au/api/v1';
+const CACHE_KEY = 'upwealth_v3';
+
+let token = '';
+let chartInst = null;
+let hasDashboard = false;  // true when dashboard is rendered (cache or fresh)
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+function show(id) {
+  ['setup', 'loading', 'error-screen', 'dashboard'].forEach(s => {
+    document.getElementById(s).classList.toggle('hidden', s !== id);
+  });
+  const isDash = id === 'dashboard';
+  document.getElementById('disconnect-btn').classList.toggle('hidden', !isDash);
+  document.getElementById('refresh-btn').classList.toggle('visible', isDash);
+}
+
+function setMsg(m) { document.getElementById('loading-msg').textContent = m; }
+
+function fmtAUD(cents) {
+  return (cents / 100).toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2 });
+}
+
+function localToday() {
+  // Use browser local date (not UTC) so it matches Up's localised timestamps
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function timeAgo(ts) {
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+// ─── Cache ────────────────────────────────────────────────────────────────────
+
+function slimTx(tx) {
+  if (tx.accountId !== undefined) return tx; // already slim
+  return {
+    id: tx.id,
+    amount: tx.attributes.amount.valueInBaseUnits,
+    settledAt: tx.attributes.settledAt,
+    createdAt: tx.attributes.createdAt,
+    accountId: tx.relationships?.account?.data?.id || null
+  };
+}
+
+function saveCache(accounts, txs, series) {
+  try {
+    const personalIds = new Set(
+      accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL').map(a => a.id)
+    );
+    const slims = txs.map(slimTx);
+    const newestSettledAt = slims.filter(
+      t => t.settledAt && personalIds.has(t.accountId)
+    ).reduce((max, t) => t.settledAt > max ? t.settledAt : max, '');
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      token, accounts, txs: slims, series, newestSettledAt, ts: Date.now()
+    }));
+  } catch { /* storage quota exceeded or private mode */ }
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d.token || !d.accounts || !d.series) return null;
+    return d;
+  } catch { return null; }
+}
+
+function clearCache() {
+  try { localStorage.removeItem(CACHE_KEY); } catch {}
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+
+async function apiFetch(url) {
+  const r = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+  });
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try { const j = await r.json(); msg = j.errors?.[0]?.title || msg; } catch {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+async function fetchAll(path, onProgress) {
+  let items = [], url = `${BASE}${path}?page[size]=100`;
+  while (url) {
+    const d = await apiFetch(url);
+    items = items.concat(d.data);
+    url = d.links?.next || null;
+    if (onProgress) onProgress(items.length);
+  }
+  return items;
+}
+
+async function fetchSince(since, onProgress) {
+  let items = [], url = `${BASE}/transactions?filter[since]=${encodeURIComponent(since)}&page[size]=100`;
+  while (url) {
+    const d = await apiFetch(url);
+    items = items.concat(d.data);
+    url = d.links?.next || null;
+    if (onProgress) onProgress(items.length);
+  }
+  return items;
+}
+
+function mergeTxs(cached, fresh) {
+  const seen = new Set(cached.map(t => t.id));
+  const merged = [...cached];
+  for (const tx of fresh) {
+    if (!seen.has(tx.id)) { merged.push(tx); seen.add(tx.id); }
+  }
+  return merged;
+}
+
+// ─── Balance reconstruction ───────────────────────────────────────────────────
+//
+// Strategy: walk backwards from today's known balance, recording the
+// *end-of-day* balance for each date before subtracting that day's net.
+//
+// Concretely, for a date D:
+//   endOfDay(D) = currentBal (before any subtraction for D)
+//   endOfDay(D-1) = currentBal - netTxs(D)
+//
+// This way "today"'s final point always equals the live account balance,
+// with no duplicate entries and no off-by-one shift.
+
+function txAccountId(tx) { return tx.accountId ?? tx.relationships?.account?.data?.id; }
+function txAmount(tx) { return tx.amount ?? tx.attributes?.amount?.valueInBaseUnits; }
+function txSettledAt(tx) { return tx.settledAt ?? tx.attributes?.settledAt; }
+function txCreatedAt(tx) { return tx.createdAt ?? tx.attributes?.createdAt; }
+
+function buildSeries(accounts, txs) {
+  const personalAccounts = accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL');
+  const personalIds = new Set(personalAccounts.map(a => a.id));
+  const balance = personalAccounts.reduce((s, a) => s + a.attributes.balance.valueInBaseUnits, 0);
+  const today = localToday();
+
+  // Aggregate net transaction amounts by local date (personal accounts only)
+  const byDate = {};
+  for (const tx of txs) {
+    const accId = txAccountId(tx);
+    if (!accId || !personalIds.has(accId)) continue;
+    const raw = txSettledAt(tx) || txCreatedAt(tx);
+    if (!raw) continue;
+    const date = raw.split('T')[0];
+    byDate[date] = (byDate[date] || 0) + txAmount(tx);
+  }
+
+  const points = [];
+  let bal = balance;
+  const sortedDates = Object.keys(byDate).sort().reverse(); // newest → oldest
+
+  // If today had no transactions, pin an explicit endpoint at today
+  if (!byDate[today]) {
+    points.push({ date: today, balance: bal });
+  }
+
+  for (const date of sortedDates) {
+    // Record end-of-day balance for this date (bal before subtracting this day)
+    points.push({ date, balance: bal });
+    // Roll back to the closing balance of the previous day
+    bal -= byDate[date];
+  }
+
+  return points.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ─── Fetch + render ───────────────────────────────────────────────────────────
+
+async function fetchAndRender() {
+  try {
+    setMsg('Fetching accounts…');
+    const accounts = await fetchAll('/accounts');
+    const txs = await fetchAll('/transactions', n => setMsg(`Loading transactions… ${n} fetched`));
+    const series = buildSeries(accounts, txs);
+    saveCache(accounts, txs, series);
+    renderDashboard(accounts, series, null);
+    show('dashboard');
+    hasDashboard = true;
+  } catch (e) {
+    const isCors = e.message === 'Failed to fetch'
+      || e.message.includes('NetworkError')
+      || e.message.includes('network');
+    document.getElementById('err-title').textContent = isCors ? 'Network error' : 'Connection failed';
+    document.getElementById('err-msg').textContent = isCors
+      ? 'Could not reach the Up API. Make sure you have an internet connection and that this page is open directly in your browser.'
+      : e.message;
+    show('error-screen');
+  }
+}
+
+async function connect() {
+  token = document.getElementById('token-input').value.trim();
+  if (!token) return;
+  show('loading');
+  setMsg('Connecting to Up…');
+  await fetchAndRender();
+}
+
+async function refresh() {
+  const btn = document.getElementById('refresh-btn');
+  btn.innerHTML = '<span class="spin">↻</span> Refreshing…';
+  btn.disabled = true;
+  try {
+    setMsg('Refreshing accounts…');
+    const accounts = await fetchAll('/accounts');
+    const cache = loadCache();
+    let txs;
+    if (cache?.txs && cache?.newestSettledAt) {
+      setMsg('Fetching new transactions…');
+      const fresh = await fetchSince(cache.newestSettledAt, n => setMsg(`Fetching new transactions… ${n}`));
+      const freshSlims = fresh.map(slimTx);
+      txs = mergeTxs(cache.txs, freshSlims);
+    } else {
+      txs = await fetchAll('/transactions', n => setMsg(`Loading transactions… ${n} fetched`));
+    }
+    const series = buildSeries(accounts, txs);
+    saveCache(accounts, txs, series);
+    renderDashboard(accounts, series, null);
+    const badge = document.getElementById('cache-badge');
+    badge.textContent = 'Updated just now';
+    badge.classList.remove('hidden');
+  } catch (e) {
+    const isCors = e.message === 'Failed to fetch'
+      || e.message.includes('NetworkError')
+      || e.message.includes('network');
+    document.getElementById('err-title').textContent = isCors ? 'Network error' : 'Refresh failed';
+    document.getElementById('err-msg').textContent = isCors
+      ? 'Could not reach the Up API.'
+      : e.message;
+    show('error-screen');
+  } finally {
+    btn.innerHTML = '↻ Refresh';
+    btn.disabled = false;
+  }
+}
+
+function goBack() {
+  // Return to dashboard (cached data) if available, otherwise back to setup
+  if (hasDashboard) {
+    show('dashboard');
+  } else {
+    show('setup');
+  }
+}
+
+function reset() {
+  token = '';
+  hasDashboard = false;
+  clearCache();
+  document.getElementById('token-input').value = '';
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  show('setup');
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+
+function renderDashboard(accounts, series, cacheTs) {
+  const personalAccounts = accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL');
+  const current = series[series.length - 1].balance;
+  const earliest = series[0].balance;
+  const change = current - earliest;
+
+  document.getElementById('stat-current').textContent = fmtAUD(current);
+  const chEl = document.getElementById('stat-change');
+  chEl.textContent = (change >= 0 ? '+' : '') + fmtAUD(change);
+  chEl.style.color = change >= 0 ? '#27ae60' : '#c0392b';
+  document.getElementById('stat-accounts').textContent = personalAccounts.length;
+  document.getElementById('date-range').textContent = `${series[0].date}  →  ${series[series.length - 1].date}`;
+
+  const badge = document.getElementById('cache-badge');
+  if (cacheTs) {
+    badge.textContent = `Cached ${timeAgo(cacheTs)}`;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+
+  // Sort accounts by current balance descending
+  const sorted = [...personalAccounts].sort((a, b) =>
+    b.attributes.balance.valueInBaseUnits - a.attributes.balance.valueInBaseUnits
+  );
+
+  const grid = document.getElementById('accounts-grid');
+  grid.innerHTML = sorted.map(a => `
+    <div class="account-card">
+      <p class="account-name muted">${a.attributes.displayName || a.attributes.accountType}</p>
+      <p class="account-balance">${fmtAUD(a.attributes.balance.valueInBaseUnits)}</p>
+    </div>
+  `).join('');
+
+  // Chart
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+
+  const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const labels = series.map(p => p.date);
+  const values = series.map(p => +(p.balance / 100).toFixed(2));
+  const ctx = document.getElementById('wealth-chart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 300);
+  grad.addColorStop(0, 'rgba(255,107,53,0.2)');
+  grad.addColorStop(1, 'rgba(255,107,53,0.0)');
+
+  chartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: '#FF6B35',
+        borderWidth: 2,
+        backgroundColor: grad,
+        fill: true,
+        tension: 0.35,
+        pointRadius: series.length > 60 ? 0 : 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#FF6B35',
+        pointBorderColor: '#FF6B35',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: t => t[0].label,
+            label: c => ' ' + c.raw.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: isDark ? '#555' : '#bbb', font: { size: 10 }, maxTicksLimit: 6, maxRotation: 0 },
+          grid: { display: false },
+          border: { display: false }
+        },
+        y: {
+          ticks: {
+            color: isDark ? '#555' : '#bbb',
+            font: { size: 10 },
+            callback: v => '$' + v.toLocaleString('en-AU', { maximumFractionDigits: 0 })
+          },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+document.getElementById('token-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') connect();
+});
+
+// Restore from cache on page load — no re-download needed
+(function init() {
+  const cache = loadCache();
+  if (cache) {
+    token = cache.token;
+    document.getElementById('token-input').value = token;
+    renderDashboard(cache.accounts, cache.series, cache.ts);
+    show('dashboard');
+    hasDashboard = true;
+  }
+})();
+</script>
+</body>
+</html>
