@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Up Wealth</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
@@ -29,8 +29,12 @@
     .error-box { background: rgba(220,60,40,0.12); border-color: rgba(220,60,40,0.25); }
     .error-title { color: #ff7c6a; }
     .error-msg { color: #cc6055; }
-    .muted { color: #888; }
-    .section-label { color: #555; }
+    .section-label { color: #888; }
+    .stat-label { color: #999; }
+    .stat-value { color: #e8e6df; }
+    .account-balance { color: #e8e6df; }
+    .account-name { color: #999; }
+    .muted { color: #999; }
     .cache-badge { background: #242422; color: #666; }
     .refresh-btn { border-color: rgba(255,255,255,0.2); color: #bbb; }
     .refresh-btn:hover { background: rgba(255,255,255,0.06); }
@@ -181,6 +185,37 @@
 
   .loading-text { font-size: 14px; color: #888; }
 
+  .progress-wrap {
+    width: 200px; margin: 20px auto 0;
+  }
+  .progress-track {
+    width: 100%; height: 3px;
+    background: rgba(255,107,53,0.15);
+    border-radius: 2px; overflow: hidden;
+    position: relative;
+  }
+  .progress-bar {
+    height: 100%; border-radius: 2px;
+    background: #FF6B35;
+    width: 0%; transition: width 0.35s ease;
+  }
+  .progress-bar.indeterminate {
+    width: 38%;
+    animation: indeterminate 1.3s ease-in-out infinite;
+  }
+  @keyframes indeterminate {
+    0%   { transform: translateX(-200%); }
+    100% { transform: translateX(430%); }
+  }
+  .progress-label {
+    font-size: 11px; color: #bbb;
+    margin-top: 10px; min-height: 16px;
+    text-align: center; letter-spacing: 0.01em;
+  }
+  @media (prefers-color-scheme: dark) {
+    .progress-label { color: #555; }
+  }
+
   /* ─── Error ───────────────────────────────────────────────────────────────── */
   .error-box {
     background: #fff0ee; border: 0.5px solid rgba(220,60,40,0.2);
@@ -232,11 +267,11 @@
   .stat-card { background: #eeecea; border-radius: 12px; padding: 12px; }
 
   .stat-label {
-    font-size: 10px; font-weight: 600; color: #888;
+    font-size: 10px; font-weight: 600; color: #666;
     text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px;
   }
 
-  .stat-value { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+  .stat-value { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: #1a1a18; }
 
   /* Chart */
   .chart-card {
@@ -245,6 +280,7 @@
   }
 
   .chart-wrap { position: relative; width: 100%; height: 200px; }
+  .chart-wrap canvas { touch-action: none; }
 
   @media (min-width: 768px) {
     .chart-wrap { height: 300px; }
@@ -297,10 +333,27 @@
     margin-bottom: 4px;
   }
 
-  .account-balance { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+  .account-balance { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: #1a1a18; }
 
   .muted { color: #888; }
   .hidden { display: none !important; }
+
+  /* ─── Footer ─────────────────────────────────────────────────────────────── */
+  .app-footer {
+    text-align: center; padding: 28px 16px 20px;
+    font-size: 11px; color: #bbb;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    flex-wrap: wrap;
+  }
+  .app-footer a { color: #bbb; text-decoration: underline; text-underline-offset: 2px; }
+  .app-footer a:hover { color: #888; }
+  .footer-sep { color: #ddd; }
+  @media (prefers-color-scheme: dark) {
+    .app-footer { color: #444; }
+    .app-footer a { color: #444; }
+    .app-footer a:hover { color: #666; }
+    .footer-sep { color: #333; }
+  }
 </style>
 </head>
 <body>
@@ -345,6 +398,12 @@
     <div class="loading-wrap">
       <div class="spinner"></div>
       <p class="loading-text" id="loading-msg">Connecting…</p>
+      <div class="progress-wrap" id="progress-wrap" style="visibility:hidden">
+        <div class="progress-track">
+          <div class="progress-bar indeterminate" id="progress-bar"></div>
+        </div>
+        <p class="progress-label" id="progress-label"></p>
+      </div>
     </div>
   </div>
 
@@ -398,9 +457,18 @@
 
 </div>
 
+<footer class="app-footer">
+  <span>v1.0.1</span>
+  <span class="footer-sep">·</span>
+  <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
+  <span class="footer-sep">·</span>
+  <a href="https://upzen.co" target="_blank">Created by upzen.co</a>
+</footer>
+
 <script>
 const BASE = 'https://api.up.com.au/api/v1';
 const CACHE_KEY = 'upwealth_v3';
+const TOKEN_KEY = 'upwealth_token';
 
 let token = '';
 let chartInst = null;
@@ -418,6 +486,43 @@ function show(id) {
 }
 
 function setMsg(m) { document.getElementById('loading-msg').textContent = m; }
+
+function setProgress(fetched, estimated) {
+  const wrap  = document.getElementById('progress-wrap');
+  const bar   = document.getElementById('progress-bar');
+  const label = document.getElementById('progress-label');
+  if (!wrap) return;
+  wrap.style.visibility = 'visible';
+  if (estimated && estimated > 0) {
+    const pct = Math.min(97, Math.round((fetched / estimated) * 100));
+    bar.classList.remove('indeterminate');
+    bar.style.width = pct + '%';
+    label.textContent = fetched.toLocaleString('en-AU') + ' / ~' + estimated.toLocaleString('en-AU') + ' transactions';
+  } else {
+    bar.classList.add('indeterminate');
+    bar.style.width = '38%';
+    label.textContent = fetched > 0 ? fetched.toLocaleString('en-AU') + ' transactions fetched…' : '';
+  }
+}
+
+function resetProgress() {
+  const wrap = document.getElementById('progress-wrap');
+  const bar  = document.getElementById('progress-bar');
+  if (!wrap) return;
+  wrap.style.visibility = 'hidden';
+  bar.classList.add('indeterminate');
+  bar.style.width = '0%';
+  document.getElementById('progress-label').textContent = '';
+}
+
+function completeProgress() {
+  const bar   = document.getElementById('progress-bar');
+  const label = document.getElementById('progress-label');
+  if (!bar) return;
+  bar.classList.remove('indeterminate');
+  bar.style.width = '100%';
+  if (label) label.textContent = '';
+}
 
 function fmtAUD(cents) {
   return (cents / 100).toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2 });
@@ -453,6 +558,10 @@ function slimTx(tx) {
 
 function saveCache(accounts, txs, series) {
   try {
+    // Token stored separately so it always survives even if main cache hits quota
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch { /* private mode */ }
+  try {
     const personalIds = new Set(
       accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL').map(a => a.id)
     );
@@ -460,10 +569,11 @@ function saveCache(accounts, txs, series) {
     const newestSettledAt = slims.filter(
       t => t.settledAt && personalIds.has(t.accountId)
     ).reduce((max, t) => t.settledAt > max ? t.settledAt : max, '');
+    // series omitted — reconstructed from accounts+txs on load, saves ~quota space
     localStorage.setItem(CACHE_KEY, JSON.stringify({
-      token, accounts, txs: slims, series, newestSettledAt, ts: Date.now()
+      accounts, txs: slims, newestSettledAt, ts: Date.now()
     }));
-  } catch { /* storage quota exceeded or private mode */ }
+  } catch { /* storage quota exceeded */ }
 }
 
 function loadCache() {
@@ -471,13 +581,18 @@ function loadCache() {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw);
-    if (!d.token || !d.accounts || !d.series) return null;
+    if (!d.accounts || !d.txs) return null;
+    // Reconstruct series if missing (dropped from cache to save quota space)
+    if (!d.series) d.series = buildSeries(d.accounts, d.txs);
+    // Backfill token from dedicated key if not in main cache
+    if (!d.token) d.token = localStorage.getItem(TOKEN_KEY) || null;
     return d;
   } catch { return null; }
 }
 
 function clearCache() {
   try { localStorage.removeItem(CACHE_KEY); } catch {}
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -496,11 +611,25 @@ async function apiFetch(url) {
 
 async function fetchAll(path, onProgress) {
   let items = [], url = `${BASE}${path}?page[size]=100`;
+  let estimated = 0;
   while (url) {
     const d = await apiFetch(url);
     items = items.concat(d.data);
     url = d.links?.next || null;
-    if (onProgress) onProgress(items.length);
+    // After first page of transactions, estimate total from date density
+    if (estimated === 0 && items.length >= 10 && path === '/transactions') {
+      const dates = items
+        .map(t => t.attributes?.settledAt || t.attributes?.createdAt)
+        .filter(Boolean).sort();
+      if (dates.length >= 2) {
+        const span = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+        const txPerDay = items.length / Math.max(1, span);
+        const accountAgeMs = Date.now() - new Date(dates[0]).getTime();
+        const accountAgeDays = accountAgeMs / 86400000;
+        estimated = Math.ceil(txPerDay * accountAgeDays * 1.05);
+      }
+    }
+    if (onProgress) onProgress(items.length, estimated);
   }
   return items;
 }
@@ -565,12 +694,12 @@ function buildSeries(accounts, txs) {
 
   // If today had no transactions, pin an explicit endpoint at today
   if (!byDate[today]) {
-    points.push({ date: today, balance: bal });
+    points.push({ date: today, balance: Math.max(0, bal) });
   }
 
   for (const date of sortedDates) {
     // Record end-of-day balance for this date (bal before subtracting this day)
-    points.push({ date, balance: bal });
+    points.push({ date, balance: Math.max(0, bal) });
     // Roll back to the closing balance of the previous day
     bal -= byDate[date];
   }
@@ -582,9 +711,12 @@ function buildSeries(accounts, txs) {
 
 async function fetchAndRender() {
   try {
+    resetProgress();
     setMsg('Fetching accounts…');
     const accounts = await fetchAll('/accounts');
-    const txs = await fetchAll('/transactions', n => setMsg(`Loading transactions… ${n} fetched`));
+    setMsg('Loading transactions…');
+    const txs = await fetchAll('/transactions', (n, est) => setProgress(n, est));
+    completeProgress();
     const series = buildSeries(accounts, txs);
     saveCache(accounts, txs, series);
     renderDashboard(accounts, series, null);
@@ -621,7 +753,7 @@ async function refresh() {
     let txs;
     if (cache?.txs && cache?.newestSettledAt) {
       setMsg('Fetching new transactions…');
-      const fresh = await fetchSince(cache.newestSettledAt, n => setMsg(`Fetching new transactions… ${n}`));
+      const fresh = await fetchSince(cache.newestSettledAt, n => setProgress(n, null));
       const freshSlims = fresh.map(slimTx);
       txs = mergeTxs(cache.txs, freshSlims);
     } else {
@@ -629,6 +761,7 @@ async function refresh() {
     }
     const series = buildSeries(accounts, txs);
     saveCache(accounts, txs, series);
+    completeProgress();
     renderDashboard(accounts, series, null);
     const badge = document.getElementById('cache-badge');
     badge.textContent = 'Updated just now';
@@ -713,6 +846,41 @@ function renderDashboard(accounts, series, cacheTs) {
   grad.addColorStop(0, 'rgba(255,107,53,0.2)');
   grad.addColorStop(1, 'rgba(255,107,53,0.0)');
 
+  // ─── Quarter grid lines plugin ───────────────────────────────────────────────
+  const quarterGridPlugin = {
+    id: 'quarterGrid',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales, data } = chart;
+      const xScale = scales.x;
+      const labels = data.labels;
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      ctx.save();
+      labels.forEach((label, i) => {
+        const [, mm, dd] = label.split('-').map(Number);
+        const isNewYear  = mm === 1  && dd === 1;
+        const isQuarter  = dd === 1 && (mm === 4 || mm === 7 || mm === 10);
+        if (!isNewYear && !isQuarter) return;
+        const x = xScale.getPixelForValue(i);
+        if (x < chartArea.left || x > chartArea.right) return;
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        if (isNewYear) {
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.22)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([]);
+        } else {
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 4]);
+        }
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  };
+
   chartInst = new Chart(ctx, {
     type: 'line',
     data: {
@@ -730,6 +898,7 @@ function renderDashboard(accounts, series, cacheTs) {
         pointBorderColor: '#FF6B35',
       }]
     },
+    plugins: [quarterGridPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -745,21 +914,72 @@ function renderDashboard(accounts, series, cacheTs) {
       },
       scales: {
         x: {
-          ticks: { color: isDark ? '#555' : '#bbb', font: { size: 10 }, maxTicksLimit: 6, maxRotation: 0 },
+          ticks: { color: isDark ? '#777' : '#bbb', font: { size: 10 }, maxTicksLimit: 6, maxRotation: 0 },
           grid: { display: false },
           border: { display: false }
         },
         y: {
           ticks: {
-            color: isDark ? '#555' : '#bbb',
+            color: isDark ? '#777' : '#bbb',
             font: { size: 10 },
             callback: v => '$' + v.toLocaleString('en-AU', { maximumFractionDigits: 0 })
           },
-          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
+          grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' },
           border: { display: false }
         }
       }
     }
+  });
+
+  // ─── Pinch-to-zoom (double-tap to reset) ─────────────────────────────────────
+  const canvas = document.getElementById('wealth-chart');
+  let touchStartDist = null, zoomStartMin = null, zoomStartMax = null;
+
+  function pinchDist(e) {
+    const [a, b] = e.touches;
+    return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+  }
+
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      touchStartDist = pinchDist(e);
+      const xs = chartInst.scales.x;
+      zoomStartMin = xs.min ?? 0;
+      zoomStartMax = xs.max ?? (labels.length - 1);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && touchStartDist !== null) {
+      e.preventDefault();
+      const scale = touchStartDist / pinchDist(e);
+      const center = (zoomStartMin + zoomStartMax) / 2;
+      const range  = (zoomStartMax - zoomStartMin) * scale;
+      const newMin = Math.max(0, Math.round(center - range / 2));
+      const newMax = Math.min(labels.length - 1, Math.round(center + range / 2));
+      if (newMax - newMin >= 6) {
+        chartInst.options.scales.x.min = newMin;
+        chartInst.options.scales.x.max = newMax;
+        chartInst.update('none');
+      }
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', e => {
+    if (e.touches.length < 2) touchStartDist = null;
+  });
+
+  // Double-tap to reset zoom
+  let lastTap = 0;
+  canvas.addEventListener('touchend', () => {
+    const now = Date.now();
+    if (now - lastTap < 320) {
+      chartInst.options.scales.x.min = undefined;
+      chartInst.options.scales.x.max = undefined;
+      chartInst.update();
+    }
+    lastTap = now;
   });
 }
 
@@ -772,12 +992,19 @@ document.getElementById('token-input').addEventListener('keydown', e => {
 // Restore from cache on page load — no re-download needed
 (function init() {
   const cache = loadCache();
-  if (cache) {
-    token = cache.token;
+  if (cache && cache.series) {
+    token = cache.token || localStorage.getItem(TOKEN_KEY) || '';
     document.getElementById('token-input').value = token;
     renderDashboard(cache.accounts, cache.series, cache.ts);
     show('dashboard');
     hasDashboard = true;
+  } else {
+    // Main cache missing/corrupt — at least restore the token so user doesn't need to retype it
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if (saved) {
+      token = saved;
+      document.getElementById('token-input').value = saved;
+    }
   }
 })();
 </script>
