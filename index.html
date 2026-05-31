@@ -458,7 +458,7 @@
 </div>
 
 <footer class="app-footer">
-  <span>v1.0.2</span>
+  <span>v1.0.3</span>
   <span class="footer-sep">·</span>
   <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
   <span class="footer-sep">·</span>
@@ -473,7 +473,7 @@ const PARTIAL_KEY = 'upwealth_partial';
 
 let token = '';
 let chartInst = null;
-let hasDashboard = false;  // true when dashboard is rendered (cache or fresh)
+let hasDashboard = false;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -502,10 +502,12 @@ function setProgress(fetched, estimated, startTime) {
     if (startTime && estimated > fetched) {
       const elapsed = (Date.now() - startTime) / 1000;
       const batches = Math.max(1, Math.ceil(fetched / 100));
-      const remaining = Math.ceil((estimated - fetched) / 100) * (elapsed / batches);
-      if (remaining < 60) text += ' · ~' + Math.ceil(remaining) + 's remaining';
-      else if (remaining < 600) text += ' · ~' + Math.floor(remaining / 60) + 'm ' + Math.ceil(remaining % 60) + 's remaining';
-      else text += ' · ~' + Math.round(remaining / 60) + ' min remaining';
+      const remainingBatches = Math.ceil((estimated - fetched) / 100);
+      const avgBatchTime = elapsed / batches;
+      const remaining = remainingBatches * avgBatchTime;
+      if (remaining < 60) text += ' · ~' + Math.ceil(remaining) + 's';
+      else if (remaining < 600) text += ' · ~' + Math.floor(remaining / 60) + 'm ' + Math.ceil(remaining % 60) + 's';
+      else text += ' · ~' + Math.round(remaining / 60) + ' min';
     }
     label.textContent = text;
   } else {
@@ -539,7 +541,6 @@ function fmtAUD(cents) {
 }
 
 function localToday() {
-  // Use browser local date (not UTC) so it matches Up's localised timestamps
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -553,10 +554,49 @@ function timeAgo(ts) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-// ─── Cache ────────────────────────────────────────────────────────────────────
+// ─── Improved Estimation ─────────────────────────────────────────────────────
+
+function estimateTotal(items) {
+  if (items.length < 20) return 0;
+  
+  // Get unique dates with activity (more stable than raw min/max)
+  const dateSet = new Set();
+  let earliestDate = null;
+  let latestDate = null;
+  
+  for (const t of items) {
+    const raw = t.settledAt || t.createdAt || t.attributes?.settledAt || t.attributes?.createdAt;
+    if (!raw) continue;
+    const dateStr = raw.split('T')[0];
+    dateSet.add(dateStr);
+    
+    if (!earliestDate || dateStr < earliestDate) earliestDate = dateStr;
+    if (!latestDate || dateStr > latestDate) latestDate = dateStr;
+  }
+  
+  const uniqueDays = dateSet.size;
+  if (uniqueDays < 5) return items.length * 3; // very new account
+  
+  const spanDays = (new Date(latestDate) - new Date(earliestDate)) / 86400000 + 1;
+  const txPerDay = items.length / Math.max(1, uniqueDays);
+  
+  // Extrapolate to full account age from earliest known transaction
+  const accountAgeMs = Date.now() - new Date(earliestDate).getTime();
+  const accountAgeDays = Math.max(1, accountAgeMs / 86400000);
+  
+  // Conservative buffer + account for gaps
+  let est = Math.ceil(txPerDay * accountAgeDays * 1.15);
+  
+  // Don't let estimate shrink too much once we have data
+  if (items.length > 100) est = Math.max(est, Math.floor(items.length * 1.1));
+  
+  return Math.max(items.length + 50, est);
+}
+
+// ─── Cache (LocalStorage + basic IndexedDB fallback) ───────────────────────
 
 function slimTx(tx) {
-  if (tx.accountId !== undefined) return tx; // already slim
+  if (tx.accountId !== undefined) return tx;
   return {
     id: tx.id,
     amount: tx.attributes.amount.valueInBaseUnits,
@@ -566,50 +606,94 @@ function slimTx(tx) {
   };
 }
 
-function saveCache(accounts, txs, series) {
-  try {
-    // Token stored separately so it always survives even if main cache hits quota
-    localStorage.setItem(TOKEN_KEY, token);
-  } catch { /* private mode */ }
-  try {
-    const personalIds = new Set(
-      accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL').map(a => a.id)
-    );
-    const slims = txs.map(slimTx);
-    const newestSettledAt = slims.filter(
-      t => t.settledAt && personalIds.has(t.accountId)
-    ).reduce((max, t) => t.settledAt > max ? t.settledAt : max, '');
-    // series omitted — reconstructed from accounts+txs on load, saves ~quota space
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      accounts, txs: slims, newestSettledAt, ts: Date.now()
-    }));
-  } catch { /* storage quota exceeded */ }
+async function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('UpWealthDB', 1);
+    request.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('cache')) {
+        db.createObjectStore('cache', { keyPath: 'key' });
+      }
+    };
+    request.onsuccess = e => resolve(e.target.result);
+    request.onerror = e => reject(e);
+  });
 }
 
-function loadCache() {
+async function saveCache(accounts, txs, series) {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const d = JSON.parse(raw);
-    if (!d.accounts || !d.txs) return null;
-    // Reconstruct series if missing (dropped from cache to save quota space)
-    if (!d.series) d.series = buildSeries(d.accounts, d.txs);
-    // Backfill token from dedicated key if not in main cache
-    if (!d.token) d.token = localStorage.getItem(TOKEN_KEY) || null;
-    return d;
-  } catch { return null; }
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {}
+  
+  const data = {
+    accounts,
+    txs: txs.map(slimTx),
+    newestSettledAt: txs.filter(t => t.settledAt).reduce((max, t) => t.settledAt > max ? t.settledAt : max, ''),
+    ts: Date.now()
+  };
+  
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch (e) {
+    // Fallback to IndexedDB for larger storage
+    try {
+      const db = await openDB();
+      const tx = db.transaction('cache', 'readwrite');
+      tx.objectStore('cache').put({ key: CACHE_KEY, value: data });
+      await new Promise(r => tx.oncomplete = r);
+    } catch {}
+  }
+}
+
+async function loadCache() {
+  try {
+    let raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.accounts && d.txs) {
+        if (!d.series) d.series = buildSeries(d.accounts, d.txs);
+        if (!d.token) d.token = localStorage.getItem(TOKEN_KEY);
+        return d;
+      }
+    }
+  } catch {}
+  
+  // Try IndexedDB
+  try {
+    const db = await openDB();
+    const tx = db.transaction('cache', 'readonly');
+    const store = tx.objectStore('cache');
+    const req = store.get(CACHE_KEY);
+    const result = await new Promise((res, rej) => {
+      req.onsuccess = () => res(req.result);
+      req.onerror = rej;
+    });
+    if (result && result.value) {
+      const d = result.value;
+      if (!d.series) d.series = buildSeries(d.accounts, d.txs);
+      return d;
+    }
+  } catch {}
+  
+  return null;
 }
 
 function clearCache() {
   try { localStorage.removeItem(CACHE_KEY); } catch {}
   try { localStorage.removeItem(TOKEN_KEY); } catch {}
   clearPartialCache();
+  // Clear IDB too
+  openDB().then(db => {
+    const tx = db.transaction('cache', 'readwrite');
+    tx.objectStore('cache').delete(CACHE_KEY);
+  }).catch(() => {});
 }
 
+// Partial cache (for resume on interrupt)
 function savePartialCache(path, items, estimated) {
   try {
     localStorage.setItem(PARTIAL_KEY, JSON.stringify({
-      token, path, items, estimated, ts: Date.now()
+      token, path, items: items.map(slimTx), estimated, ts: Date.now()
     }));
   } catch {}
 }
@@ -642,33 +726,26 @@ async function apiFetch(url) {
   return r.json();
 }
 
-function estimateTotal(items) {
-  const dates = items
-    .map(t => t.attributes?.settledAt || t.attributes?.createdAt)
-    .filter(Boolean).sort();
-  if (dates.length < 2) return 0;
-  const span = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
-  const txPerDay = items.length / Math.max(1, span);
-  const accountAgeMs = Date.now() - new Date(dates[0]).getTime();
-  const accountAgeDays = accountAgeMs / 86400000;
-  return Math.ceil(txPerDay * accountAgeDays * 1.05);
-}
-
 async function fetchAll(path, onProgress, seed = []) {
   let items = [...seed];
   const seedIds = new Set(seed.map(t => t.id));
   let url = `${BASE}${path}?page[size]=100`;
-  let estimated = items.length >= 10 && path === '/transactions' ? estimateTotal(items) : 0;
+  let estimated = items.length >= 20 && path === '/transactions' ? estimateTotal(items) : 0;
+  
   while (url) {
     const d = await apiFetch(url);
     const fresh = seedIds.size ? d.data.filter(t => !seedIds.has(t.id)) : d.data;
     for (const t of fresh) seedIds.add(t.id);
     items = items.concat(fresh);
+    
     url = d.links?.next || null;
+    
     if (path === '/transactions') {
       estimated = estimateTotal(items);
       if (onProgress) onProgress(items.length, estimated);
-      savePartialCache(path, items, estimated);
+      if (items.length % 300 === 0 || !url) { // save partial every ~3 pages
+        savePartialCache(path, items, estimated);
+      }
     } else {
       if (onProgress) onProgress(items.length);
     }
@@ -691,22 +768,15 @@ function mergeTxs(cached, fresh) {
   const seen = new Set(cached.map(t => t.id));
   const merged = [...cached];
   for (const tx of fresh) {
-    if (!seen.has(tx.id)) { merged.push(tx); seen.add(tx.id); }
+    if (!seen.has(tx.id)) {
+      merged.push(tx);
+      seen.add(tx.id);
+    }
   }
   return merged;
 }
 
 // ─── Balance reconstruction ───────────────────────────────────────────────────
-//
-// Strategy: walk backwards from today's known balance, recording the
-// *end-of-day* balance for each date before subtracting that day's net.
-//
-// Concretely, for a date D:
-//   endOfDay(D) = currentBal (before any subtraction for D)
-//   endOfDay(D-1) = currentBal - netTxs(D)
-//
-// This way "today"'s final point always equals the live account balance,
-// with no duplicate entries and no off-by-one shift.
 
 function txAccountId(tx) { return tx.accountId ?? tx.relationships?.account?.data?.id; }
 function txAmount(tx) { return tx.amount ?? tx.attributes?.amount?.valueInBaseUnits; }
@@ -719,7 +789,6 @@ function buildSeries(accounts, txs) {
   const balance = personalAccounts.reduce((s, a) => s + a.attributes.balance.valueInBaseUnits, 0);
   const today = localToday();
 
-  // Aggregate net transaction amounts by local date (personal accounts only)
   const byDate = {};
   for (const tx of txs) {
     const accId = txAccountId(tx);
@@ -732,17 +801,14 @@ function buildSeries(accounts, txs) {
 
   const points = [];
   let bal = balance;
-  const sortedDates = Object.keys(byDate).sort().reverse(); // newest → oldest
+  const sortedDates = Object.keys(byDate).sort().reverse();
 
-  // If today had no transactions, pin an explicit endpoint at today
   if (!byDate[today]) {
     points.push({ date: today, balance: Math.max(0, bal) });
   }
 
   for (const date of sortedDates) {
-    // Record end-of-day balance for this date (bal before subtracting this day)
     points.push({ date, balance: Math.max(0, bal) });
-    // Roll back to the closing balance of the previous day
     bal -= byDate[date];
   }
 
@@ -757,23 +823,26 @@ async function fetchAndRender() {
     setMsg('Fetching accounts…');
     const accounts = await fetchAll('/accounts');
     setMsg('Loading transactions…');
+    
     const partial = loadPartialCache();
     const startTime = Date.now();
+    
     const txs = await fetchAll('/transactions',
       (n, est) => setProgress(n, est, startTime),
       partial?.items || []
     );
+    
     completeProgress();
     clearPartialCache();
+    
     const series = buildSeries(accounts, txs);
-    saveCache(accounts, txs, series);
+    await saveCache(accounts, txs, series);
+    
     renderDashboard(accounts, series, null);
     show('dashboard');
     hasDashboard = true;
   } catch (e) {
-    const isCors = e.message === 'Failed to fetch'
-      || e.message.includes('NetworkError')
-      || e.message.includes('network');
+    const isCors = e.message === 'Failed to fetch' || e.message.includes('NetworkError') || e.message.includes('network');
     document.getElementById('err-title').textContent = isCors ? 'Network error' : 'Connection failed';
     document.getElementById('err-msg').textContent = isCors
       ? 'Could not reach the Up API. Make sure you have an internet connection and that this page is open directly in your browser.'
@@ -797,8 +866,9 @@ async function refresh() {
   try {
     setMsg('Refreshing accounts…');
     const accounts = await fetchAll('/accounts');
-    const cache = loadCache();
+    const cache = await loadCache();
     let txs;
+    
     if (cache?.txs && cache?.newestSettledAt) {
       setMsg('Fetching new transactions…');
       const fresh = await fetchSince(cache.newestSettledAt, n => setProgress(n, null));
@@ -809,17 +879,17 @@ async function refresh() {
       txs = await fetchAll('/transactions', (n, est) => setProgress(n, est, startTime));
       clearPartialCache();
     }
+    
     const series = buildSeries(accounts, txs);
-    saveCache(accounts, txs, series);
+    await saveCache(accounts, txs, series);
     completeProgress();
     renderDashboard(accounts, series, null);
+    
     const badge = document.getElementById('cache-badge');
     badge.textContent = 'Updated just now';
     badge.classList.remove('hidden');
   } catch (e) {
-    const isCors = e.message === 'Failed to fetch'
-      || e.message.includes('NetworkError')
-      || e.message.includes('network');
+    const isCors = e.message === 'Failed to fetch' || e.message.includes('NetworkError') || e.message.includes('network');
     document.getElementById('err-title').textContent = isCors ? 'Network error' : 'Refresh failed';
     document.getElementById('err-msg').textContent = isCors
       ? 'Could not reach the Up API.'
@@ -832,7 +902,6 @@ async function refresh() {
 }
 
 function goBack() {
-  // Return to dashboard (cached data) if available, otherwise back to setup
   if (hasDashboard) {
     show('dashboard');
   } else {
@@ -849,7 +918,7 @@ function reset() {
   show('setup');
 }
 
-// ─── Render ───────────────────────────────────────────────────────────────────
+// ─── Render (unchanged except version bump) ───────────────────────────────────
 
 function renderDashboard(accounts, series, cacheTs) {
   const personalAccounts = accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL');
@@ -872,7 +941,6 @@ function renderDashboard(accounts, series, cacheTs) {
     badge.classList.add('hidden');
   }
 
-  // Sort accounts by current balance descending
   const sorted = [...personalAccounts].sort((a, b) =>
     b.attributes.balance.valueInBaseUnits - a.attributes.balance.valueInBaseUnits
   );
@@ -885,7 +953,6 @@ function renderDashboard(accounts, series, cacheTs) {
     </div>
   `).join('');
 
-  // Chart
   if (chartInst) { chartInst.destroy(); chartInst = null; }
 
   const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -896,7 +963,6 @@ function renderDashboard(accounts, series, cacheTs) {
   grad.addColorStop(0, 'rgba(255,107,53,0.2)');
   grad.addColorStop(1, 'rgba(255,107,53,0.0)');
 
-  // ─── Quarter grid lines plugin ───────────────────────────────────────────────
   const quarterGridPlugin = {
     id: 'quarterGrid',
     afterDraw(chart) {
@@ -981,7 +1047,7 @@ function renderDashboard(accounts, series, cacheTs) {
     }
   });
 
-  // ─── Pinch-to-zoom (double-tap to reset) ─────────────────────────────────────
+  // Pinch zoom + double tap (unchanged)
   const canvas = document.getElementById('wealth-chart');
   let touchStartDist = null, zoomStartMin = null, zoomStartMax = null;
 
@@ -1020,7 +1086,6 @@ function renderDashboard(accounts, series, cacheTs) {
     if (e.touches.length < 2) touchStartDist = null;
   });
 
-  // Double-tap to reset zoom
   let lastTap = 0;
   canvas.addEventListener('touchend', () => {
     const now = Date.now();
@@ -1039,9 +1104,8 @@ document.getElementById('token-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') connect();
 });
 
-// Restore from cache on page load — no re-download needed
-(function init() {
-  const cache = loadCache();
+(async function init() {
+  const cache = await loadCache();
   if (cache && cache.series) {
     token = cache.token || localStorage.getItem(TOKEN_KEY) || '';
     document.getElementById('token-input').value = token;
@@ -1049,7 +1113,6 @@ document.getElementById('token-input').addEventListener('keydown', e => {
     show('dashboard');
     hasDashboard = true;
   } else {
-    // Main cache missing/corrupt — at least restore the token so user doesn't need to retype it
     const saved = localStorage.getItem(TOKEN_KEY);
     if (saved) {
       token = saved;
