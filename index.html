@@ -383,7 +383,7 @@
     </div>
     <div class="setup-wrap">
       <label class="setup-label" for="token-input">Personal Access Token</label>
-      <input type="password" id="token-input" placeholder="up:yeah:xxxxxxxxxxxx" autocomplete="off" autocorrect="off" spellcheck="false">
+      <input type="password" id="token-input" placeholder="up:yeah:xxxxxxxxxxxx" autocomplete="off" autocorrect="off" spellcheck="false" oninput="saveTokenImmediate(this.value)">
       <p class="hint">Get yours at <a href="https://api.up.com.au">api.up.com.au</a> or in the Up app under <strong>Settings → Data Sharing</strong></p>
       <div class="privacy-badge">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -461,7 +461,7 @@
 </div>
 
 <footer class="app-footer">
-  <span>v1.0.3</span>
+  <span>v1.0.4</span>
   <span class="footer-sep">·</span>
   <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
   <span class="footer-sep">·</span>
@@ -472,7 +472,7 @@
 const BASE        = 'https://api.up.com.au/api/v1';
 const TOKEN_KEY   = 'upwealth_token';
 const LS_LEGACY   = 'upwealth_v3';    // old localStorage key — migrated on first load
-const APP_VERSION = '1.0.3';          // bump this with every GitHub Pages publish
+const APP_VERSION = '1.0.4';          // bump this with every GitHub Pages publish
 const DB_NAME     = 'upwealth_db';
 const DB_STORE    = 'cache';
 const DB_KEY      = 'main';
@@ -600,8 +600,12 @@ function timeAgo(ts) {
 }
 
 // ─── IndexedDB Cache ──────────────────────────────────────────────────────────
-// Replaces localStorage — no 5 MB quota, handles large transaction histories.
-// Token stays in localStorage (tiny, needed synchronously for token-input prefill).
+// All bulk data lives in IndexedDB (no 5 MB quota).
+// Token stays in localStorage — tiny, synchronously readable for early prefill.
+//
+// Resilience design:
+//   loadComplete: false  → partial load (crashed mid-fetch); auto-resume on init
+//   loadComplete: true   → full load complete; show dashboard normally
 
 function slimTx(tx) {
   if (tx.accountId !== undefined) return tx; // already slim
@@ -612,6 +616,12 @@ function slimTx(tx) {
     createdAt: tx.attributes.createdAt,
     accountId: tx.relationships?.account?.data?.id || null
   };
+}
+
+// Token saved immediately on input — before Connect is even pressed
+function saveTokenImmediate(val) {
+  const v = (val || '').trim();
+  if (v) try { localStorage.setItem(TOKEN_KEY, v); } catch {}
 }
 
 function _openDB() {
@@ -649,6 +659,21 @@ async function _idbDel(key) {
   });
 }
 
+// Write in-progress state — called after accounts fetch and after every tx page.
+// loadComplete: false so init() knows to resume if the app crashes here.
+async function savePartial(accounts, txs) {
+  try {
+    const slims = txs.map(slimTx);
+    await _idbSet(DB_KEY, {
+      accounts,
+      txs:          slims,
+      loadComplete: false,
+      ts:           Date.now()
+    });
+  } catch (e) { console.warn('savePartial failed', e); }
+}
+
+// Write fully-loaded state. Computes newestSettledAt for incremental refresh.
 async function saveCache(accounts, txs) {
   try { localStorage.setItem(TOKEN_KEY, token); } catch {}
   try {
@@ -659,13 +684,17 @@ async function saveCache(accounts, txs) {
     const newestSettledAt = slims
       .filter(t => t.settledAt && personalIds.has(t.accountId))
       .reduce((max, t) => t.settledAt > max ? t.settledAt : max, '');
-    await _idbSet(DB_KEY, { accounts, txs: slims, newestSettledAt, ts: Date.now() });
-    // Clean up legacy localStorage cache
+    await _idbSet(DB_KEY, {
+      accounts, txs: slims, newestSettledAt,
+      loadComplete: true,
+      ts:           Date.now()
+    });
     try { localStorage.removeItem(LS_LEGACY); } catch {}
   } catch (e) { console.warn('saveCache failed', e); }
 }
 
-async function loadCache() {
+// Read raw cache without building series (used by init for branching logic).
+async function _getRawCache() {
   try {
     let d = await _idbGet(DB_KEY);
     // One-time migration from old localStorage cache
@@ -675,18 +704,25 @@ async function loadCache() {
         try {
           const legacy = JSON.parse(raw);
           if (legacy?.accounts && legacy?.txs) {
-            d = legacy;
+            d = { ...legacy, loadComplete: true }; // assume legacy was complete
             await _idbSet(DB_KEY, d);
             localStorage.removeItem(LS_LEGACY);
           }
         } catch {}
       }
     }
-    if (!d?.accounts || !d?.txs) return null;
-    d.series = buildSeries(d.accounts, d.txs);
-    d.token  = localStorage.getItem(TOKEN_KEY) || null;
+    if (!d?.accounts) return null;
+    d.token = localStorage.getItem(TOKEN_KEY) || null;
     return d;
   } catch { return null; }
+}
+
+// Read complete cache and build series (used by refresh and normal init path).
+async function loadCache() {
+  const d = await _getRawCache();
+  if (!d?.txs) return null;
+  d.series = buildSeries(d.accounts, d.txs);
+  return d;
 }
 
 async function clearCache() {
@@ -709,7 +745,7 @@ async function apiFetch(url) {
   return r.json();
 }
 
-async function fetchAll(path, onProgress, accountStartMs) {
+async function fetchAll(path, onProgress, accountStartMs, onPage) {
   let items = [], url = `${BASE}${path}?page[size]=100`;
   const startTime = Date.now();
   while (url) {
@@ -726,12 +762,13 @@ async function fetchAll(path, onProgress, accountStartMs) {
         .map(t => t.attributes?.settledAt || t.attributes?.createdAt)
         .filter(Boolean).sort();
       if (dates.length >= 2) {
-        const spanDays     = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
-        const txPerDay     = items.length / Math.max(0.5, spanDays);
-        const accountDays  = (Date.now() - accountStartMs) / 86400000;
+        const spanDays    = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+        const txPerDay    = items.length / Math.max(0.5, spanDays);
+        const accountDays = (Date.now() - accountStartMs) / 86400000;
         estimated = Math.ceil(txPerDay * accountDays);
       }
     }
+    if (onPage) await onPage(d.data, items);
     if (onProgress) onProgress(items.length, estimated, Date.now() - startTime);
   }
   return items;
@@ -744,6 +781,34 @@ async function fetchSince(since, onProgress) {
     items = items.concat(d.data);
     url = d.links?.next || null;
     if (onProgress) onProgress(items.length);
+  }
+  return items;
+}
+
+// Fetch transactions older than `until` (ISO 8601 createdAt).
+// Used for crash recovery: resumes where a previous partial load left off.
+async function fetchOlderThan(until, onProgress, accountStartMs, onPage) {
+  let items = [];
+  let url = `${BASE}/transactions?filter[until]=${encodeURIComponent(until)}&page[size]=100`;
+  const startTime = Date.now();
+  while (url) {
+    const d = await apiFetch(url);
+    items = items.concat(d.data);
+    url = d.links?.next || null;
+    let estimated = 0;
+    if (items.length >= 10 && accountStartMs) {
+      const dates = items
+        .map(t => t.attributes?.settledAt || t.attributes?.createdAt)
+        .filter(Boolean).sort();
+      if (dates.length >= 2) {
+        const spanDays    = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+        const txPerDay    = items.length / Math.max(0.5, spanDays);
+        const accountDays = (Date.now() - accountStartMs) / 86400000;
+        estimated = Math.ceil(txPerDay * accountDays);
+      }
+    }
+    if (onPage) await onPage(d.data, items);
+    if (onProgress) onProgress(items.length, estimated, Date.now() - startTime);
   }
   return items;
 }
@@ -812,21 +877,33 @@ function buildSeries(accounts, txs) {
 
 // ─── Fetch + render ───────────────────────────────────────────────────────────
 
+// Shared helper — extracts earliest account creation timestamp
+function accountStartMs(accounts) {
+  return accounts
+    .filter(a => a.attributes.ownershipType === 'INDIVIDUAL')
+    .reduce((min, a) => {
+      const t = new Date(a.attributes.createdAt).getTime();
+      return t < min ? t : min;
+    }, Date.now());
+}
+
 async function fetchAndRender() {
   try {
     resetProgress();
     setMsg('Fetching accounts…');
     const accounts = await fetchAll('/accounts');
-    // Derive account start date for estimation denominator
-    const personal = accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL');
-    const accountStartMs = personal.reduce((min, a) => {
-      const t = new Date(a.attributes.createdAt).getTime();
-      return t < min ? t : min;
-    }, Date.now());
+    // Persist accounts immediately — if we crash during tx fetch, recovery can resume
+    await savePartial(accounts, []);
+    const startMs = accountStartMs(accounts);
     setMsg('Loading transactions…');
-    const txs = await fetchAll('/transactions',
+    const txs = await fetchAll(
+      '/transactions',
       (n, est, elapsed) => setProgress(n, est, elapsed),
-      accountStartMs
+      startMs,
+      async (_page, accumulated) => {
+        // Flush every page to IndexedDB — crash-safe incremental writes
+        await savePartial(accounts, accumulated);
+      }
     );
     completeProgress();
     const series = buildSeries(accounts, txs);
@@ -869,14 +946,12 @@ async function refresh() {
       const freshSlims = fresh.map(slimTx);
       txs = mergeTxs(cache.txs, freshSlims);
     } else {
-      const personal = accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL');
-      const accountStartMs = personal.reduce((min, a) => {
-        const t = new Date(a.attributes.createdAt).getTime();
-        return t < min ? t : min;
-      }, Date.now());
-      txs = await fetchAll('/transactions',
+      const startMs = accountStartMs(accounts);
+      txs = await fetchAll(
+        '/transactions',
         (n, est, elapsed) => setProgress(n, est, elapsed),
-        accountStartMs
+        startMs,
+        async (_page, accumulated) => { await savePartial(accounts, accumulated); }
       );
     }
     const series = buildSeries(accounts, txs);
@@ -1110,21 +1185,80 @@ document.getElementById('token-input').addEventListener('keydown', e => {
 });
 
 // Restore from cache on page load — no re-download needed
-(async function init() {
+// Resume a crash-interrupted load. We have accounts + N partial txs in IndexedDB.
+// Fetch everything older than our oldest saved tx, merge, then mark complete.
+async function resumeLoad(partial) {
   try {
-    const cache = await loadCache();
-    if (cache?.series) {
-      token = cache.token || localStorage.getItem(TOKEN_KEY) || '';
-      document.getElementById('token-input').value = token;
-      renderDashboard(cache.accounts, cache.series, cache.ts);
+    const accounts   = partial.accounts;
+    const existingTxs = partial.txs || [];
+    const startMs    = accountStartMs(accounts);
+
+    // Find the oldest createdAt we already have — fetch everything before it
+    const oldestCreatedAt = existingTxs
+      .map(t => t.createdAt).filter(Boolean).sort()[0];
+
+    const alreadyCount = existingTxs.length;
+    resetProgress();
+    // Seed progress display with what we already have on disk
+    _prog.fetched   = alreadyCount;
+    _prog.estimated = 0;
+
+    setMsg(`Resuming — ${alreadyCount.toLocaleString('en-AU')} transactions already saved`);
+
+    let olderTxs = [];
+    if (oldestCreatedAt) {
+      olderTxs = await fetchOlderThan(
+        oldestCreatedAt,
+        (n, est, elapsed) => {
+          // Show progress as total (existing + newly fetched)
+          setProgress(alreadyCount + n, est, elapsed);
+        },
+        startMs,
+        async (_page, accumulated) => {
+          await savePartial(accounts, [...existingTxs, ...accumulated.map(slimTx)]);
+        }
+      );
+    }
+
+    completeProgress();
+    const allTxs = mergeTxs(existingTxs, olderTxs.map(slimTx));
+    const series  = buildSeries(accounts, allTxs);
+    await saveCache(accounts, allTxs);
+    renderDashboard(accounts, series, null);
+    show('dashboard');
+    hasDashboard = true;
+  } catch (e) {
+    console.error('resumeLoad failed', e);
+    show('setup');
+  }
+}
+
+(async function init() {
+  // Always pre-fill token input from localStorage — works even before IndexedDB loads
+  const savedToken = localStorage.getItem(TOKEN_KEY);
+  if (savedToken) {
+    token = savedToken;
+    document.getElementById('token-input').value = savedToken;
+  }
+
+  try {
+    const raw = await _getRawCache();
+    if (!raw) { show('setup'); return; }
+
+    token = raw.token || savedToken || '';
+    if (token) document.getElementById('token-input').value = token;
+
+    if (raw.loadComplete && raw.txs?.length) {
+      // Normal path — complete cache, show dashboard immediately
+      const series = buildSeries(raw.accounts, raw.txs);
+      renderDashboard(raw.accounts, series, raw.ts);
       show('dashboard');
       hasDashboard = true;
+    } else if (!raw.loadComplete && raw.accounts && raw.txs?.length && token) {
+      // Crash recovery — partial load detected, auto-resume
+      show('loading');
+      await resumeLoad(raw);
     } else {
-      const saved = localStorage.getItem(TOKEN_KEY);
-      if (saved) {
-        token = saved;
-        document.getElementById('token-input').value = saved;
-      }
       show('setup');
     }
   } catch {
