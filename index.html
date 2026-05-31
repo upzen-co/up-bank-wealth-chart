@@ -458,7 +458,7 @@
 </div>
 
 <footer class="app-footer">
-  <span>v1.0.1</span>
+  <span>v1.0.2</span>
   <span class="footer-sep">·</span>
   <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
   <span class="footer-sep">·</span>
@@ -469,6 +469,7 @@
 const BASE = 'https://api.up.com.au/api/v1';
 const CACHE_KEY = 'upwealth_v3';
 const TOKEN_KEY = 'upwealth_token';
+const PARTIAL_KEY = 'upwealth_partial';
 
 let token = '';
 let chartInst = null;
@@ -487,7 +488,7 @@ function show(id) {
 
 function setMsg(m) { document.getElementById('loading-msg').textContent = m; }
 
-function setProgress(fetched, estimated) {
+function setProgress(fetched, estimated, startTime) {
   const wrap  = document.getElementById('progress-wrap');
   const bar   = document.getElementById('progress-bar');
   const label = document.getElementById('progress-label');
@@ -497,7 +498,16 @@ function setProgress(fetched, estimated) {
     const pct = Math.min(97, Math.round((fetched / estimated) * 100));
     bar.classList.remove('indeterminate');
     bar.style.width = pct + '%';
-    label.textContent = fetched.toLocaleString('en-AU') + ' / ~' + estimated.toLocaleString('en-AU') + ' transactions';
+    let text = fetched.toLocaleString('en-AU') + ' / ~' + estimated.toLocaleString('en-AU') + ' transactions';
+    if (startTime && estimated > fetched) {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const batches = Math.max(1, Math.ceil(fetched / 100));
+      const remaining = Math.ceil((estimated - fetched) / 100) * (elapsed / batches);
+      if (remaining < 60) text += ' · ~' + Math.ceil(remaining) + 's remaining';
+      else if (remaining < 600) text += ' · ~' + Math.floor(remaining / 60) + 'm ' + Math.ceil(remaining % 60) + 's remaining';
+      else text += ' · ~' + Math.round(remaining / 60) + ' min remaining';
+    }
+    label.textContent = text;
   } else {
     bar.classList.add('indeterminate');
     bar.style.width = '38%';
@@ -593,6 +603,29 @@ function loadCache() {
 function clearCache() {
   try { localStorage.removeItem(CACHE_KEY); } catch {}
   try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  clearPartialCache();
+}
+
+function savePartialCache(path, items, estimated) {
+  try {
+    localStorage.setItem(PARTIAL_KEY, JSON.stringify({
+      token, path, items, estimated, ts: Date.now()
+    }));
+  } catch {}
+}
+
+function loadPartialCache() {
+  try {
+    const raw = localStorage.getItem(PARTIAL_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (d.token !== token || d.path !== '/transactions') return null;
+    return d;
+  } catch { return null; }
+}
+
+function clearPartialCache() {
+  try { localStorage.removeItem(PARTIAL_KEY); } catch {}
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -609,27 +642,36 @@ async function apiFetch(url) {
   return r.json();
 }
 
-async function fetchAll(path, onProgress) {
-  let items = [], url = `${BASE}${path}?page[size]=100`;
-  let estimated = 0;
+function estimateTotal(items) {
+  const dates = items
+    .map(t => t.attributes?.settledAt || t.attributes?.createdAt)
+    .filter(Boolean).sort();
+  if (dates.length < 2) return 0;
+  const span = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+  const txPerDay = items.length / Math.max(1, span);
+  const accountAgeMs = Date.now() - new Date(dates[0]).getTime();
+  const accountAgeDays = accountAgeMs / 86400000;
+  return Math.ceil(txPerDay * accountAgeDays * 1.05);
+}
+
+async function fetchAll(path, onProgress, seed = []) {
+  let items = [...seed];
+  const seedIds = new Set(seed.map(t => t.id));
+  let url = `${BASE}${path}?page[size]=100`;
+  let estimated = items.length >= 10 && path === '/transactions' ? estimateTotal(items) : 0;
   while (url) {
     const d = await apiFetch(url);
-    items = items.concat(d.data);
+    const fresh = seedIds.size ? d.data.filter(t => !seedIds.has(t.id)) : d.data;
+    for (const t of fresh) seedIds.add(t.id);
+    items = items.concat(fresh);
     url = d.links?.next || null;
-    // After first page of transactions, estimate total from date density
-    if (estimated === 0 && items.length >= 10 && path === '/transactions') {
-      const dates = items
-        .map(t => t.attributes?.settledAt || t.attributes?.createdAt)
-        .filter(Boolean).sort();
-      if (dates.length >= 2) {
-        const span = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
-        const txPerDay = items.length / Math.max(1, span);
-        const accountAgeMs = Date.now() - new Date(dates[0]).getTime();
-        const accountAgeDays = accountAgeMs / 86400000;
-        estimated = Math.ceil(txPerDay * accountAgeDays * 1.05);
-      }
+    if (path === '/transactions') {
+      estimated = estimateTotal(items);
+      if (onProgress) onProgress(items.length, estimated);
+      savePartialCache(path, items, estimated);
+    } else {
+      if (onProgress) onProgress(items.length);
     }
-    if (onProgress) onProgress(items.length, estimated);
   }
   return items;
 }
@@ -715,8 +757,14 @@ async function fetchAndRender() {
     setMsg('Fetching accounts…');
     const accounts = await fetchAll('/accounts');
     setMsg('Loading transactions…');
-    const txs = await fetchAll('/transactions', (n, est) => setProgress(n, est));
+    const partial = loadPartialCache();
+    const startTime = Date.now();
+    const txs = await fetchAll('/transactions',
+      (n, est) => setProgress(n, est, startTime),
+      partial?.items || []
+    );
     completeProgress();
+    clearPartialCache();
     const series = buildSeries(accounts, txs);
     saveCache(accounts, txs, series);
     renderDashboard(accounts, series, null);
@@ -757,7 +805,9 @@ async function refresh() {
       const freshSlims = fresh.map(slimTx);
       txs = mergeTxs(cache.txs, freshSlims);
     } else {
-      txs = await fetchAll('/transactions', n => setMsg(`Loading transactions… ${n} fetched`));
+      const startTime = Date.now();
+      txs = await fetchAll('/transactions', (n, est) => setProgress(n, est, startTime));
+      clearPartialCache();
     }
     const series = buildSeries(accounts, txs);
     saveCache(accounts, txs, series);
