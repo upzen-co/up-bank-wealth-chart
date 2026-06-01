@@ -3,214 +3,276 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Up Wealth">
-<meta name="theme-color" content="#FF6B35">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Up Wealth</title>
+<meta name="apple-mobile-web-app-title" content="upzen wealth">
+<meta name="theme-color" content="#2D6A4F">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D1410">
+<title>upzen wealth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@1&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
+  /* ─── Variables ──────────────────────────────────────────────────────────────── */
+  :root {
+    --bg:            #F0EDE8;
+    --surface:       #FFFFFF;
+    --surface-alt:   #F7F4F0;
+    --text:          #1A1714;
+    --text-muted:    #7A7068;
+    --text-subtle:   #B5ADA5;
+    --accent:        #2D6A4F;
+    --accent-rgb:    45,106,79;
+    --accent-dim:    rgba(45,106,79,0.09);
+    --border:        rgba(0,0,0,0.07);
+    --border-strong: rgba(0,0,0,0.13);
+    --positive:      #2D6A4F;
+    --negative:      #B83030;
+    --r-sm:          10px;
+    --r-md:          14px;
+    --r-lg:          18px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:            #0D1410;
+      --surface:       #141E17;
+      --surface-alt:   #1B281E;
+      --text:          #E4EDE6;
+      --text-muted:    #6B7C6D;
+      --text-subtle:   #374A39;
+      --accent:        #52B788;
+      --accent-rgb:    82,183,136;
+      --accent-dim:    rgba(82,183,136,0.12);
+      --border:        rgba(255,255,255,0.07);
+      --border-strong: rgba(255,255,255,0.13);
+      --positive:      #52B788;
+      --negative:      #E07070;
+    }
+  }
+
+  /* ─── Reset & base ───────────────────────────────────────────────────────────── */
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'San Francisco', sans-serif;
-    background: #f5f4f1;
-    color: #1a1a18;
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
     min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* ─── Dark mode ──────────────────────────────────────────────────────────── */
-  @media (prefers-color-scheme: dark) {
-    body { background: #111110; color: #e8e6df; }
-    .header { background: #111110; border-bottom: 0.5px solid rgba(255,255,255,0.08); }
-    .setup-wrap { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
-    input { background: #242422; border-color: rgba(255,255,255,0.12); color: #e8e6df; }
-    input::placeholder { color: #555; }
-    .hint { color: #666; }
-    .stat-card { background: #242422; }
-    .account-card { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
-    .error-box { background: rgba(220,60,40,0.12); border-color: rgba(220,60,40,0.25); }
-    .error-title { color: #ff7c6a; }
-    .error-msg { color: #cc6055; }
-    .section-label { color: #888; }
-    .stat-label { color: #999; }
-    .stat-value { color: #e8e6df; }
-    .account-balance { color: #e8e6df; }
-    .account-name { color: #999; }
-    .muted { color: #999; }
-    .cache-badge { background: #242422; color: #666; }
-    .refresh-btn { border-color: rgba(255,255,255,0.2); color: #bbb; }
-    .refresh-btn:hover { background: rgba(255,255,255,0.06); }
-    .accounts-divider { border-color: rgba(255,255,255,0.07); }
-    .disconnect-btn { color: #aaa; }
-    .header-title { color: #e8e6df; }
-  }
-
-  /* ─── Header ─────────────────────────────────────────────────────────────── */
+  /* ─── Header ─────────────────────────────────────────────────────────────────── */
   .header {
-    background: #fff;
-    border-bottom: 0.5px solid rgba(0,0,0,0.08);
-    padding: 11px 16px;
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    padding: 12px 16px;
     display: flex;
     align-items: center;
     gap: 10px;
     position: sticky;
-    top: 0;
-    z-index: 10;
+    top: 0; z-index: 10;
   }
-
   @media (min-width: 768px) {
-    .header { padding: 11px 32px; }
+    .header { padding: 12px 28px; }
   }
 
   .logo {
     width: 30px; height: 30px;
-    background: #FF6B35;
+    background: var(--accent);
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-
   .logo svg {
     width: 15px; height: 15px;
     stroke: white; fill: none;
     stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
   }
 
-  .header-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #1a1a18; }
+  .header-wordmark {
+    display: flex; align-items: baseline; gap: 4px;
+    font-size: 17px; letter-spacing: -0.02em;
+    user-select: none;
+  }
+  .wordmark-brand {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-style: italic;
+    color: var(--accent);
+  }
+  .wordmark-product {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
 
-  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-  .refresh-btn {
-    display: none;
-    align-items: center; gap: 5px;
+  .action-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 11px;
+    border-radius: var(--r-sm);
+    border: 0.5px solid var(--border-strong);
     background: none;
-    border: 1px solid rgba(0,0,0,0.22);
-    border-radius: 8px;
-    font-size: 12px; color: #444;
-    padding: 5px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    color: var(--text-muted);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, color 0.15s;
   }
-  .refresh-btn:hover { background: rgba(0,0,0,0.04); }
-  .refresh-btn.visible { display: flex; }
-  .refresh-btn .spin { display: inline-block; animation: spin 0.7s linear infinite; }
+  .action-btn svg {
+    width: 12px; height: 12px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+  .action-btn:hover { background: var(--surface-alt); color: var(--text); }
+  .action-btn.spinning svg { animation: spin 0.8s linear infinite; }
 
-  .disconnect-btn {
-    background: none; border: none;
-    font-size: 13px; color: #555;
-    padding: 6px 0; cursor: pointer;
+  .action-btn-danger {
+    border-color: rgba(184,48,48,0.2);
+    color: var(--negative);
+  }
+  .action-btn-danger:hover { background: rgba(184,48,48,0.07); color: var(--negative); }
+  @media (prefers-color-scheme: dark) {
+    .action-btn-danger { border-color: rgba(224,112,112,0.2); }
   }
 
-  /* ─── Layout ─────────────────────────────────────────────────────────────── */
+  /* ─── Layout ─────────────────────────────────────────────────────────────────── */
   .content {
     padding: 20px 16px;
-    max-width: 480px;
+    max-width: 500px;
     margin: 0 auto;
   }
-
   @media (min-width: 768px) {
-    .content { max-width: 1300px; padding: 28px 32px; }
-    #setup, #loading, #error-screen { max-width: 460px; margin: 0 auto; }
+    .content { max-width: 1300px; padding: 28px 28px; }
+    #setup, #loading, #error-screen { max-width: 440px; margin: 0 auto; }
   }
 
-  /* ─── Setup ──────────────────────────────────────────────────────────────── */
-  .setup-wrap {
-    background: #fff;
-    border: 0.5px solid rgba(0,0,0,0.08);
-    border-radius: 16px;
+  /* ─── Setup screen ───────────────────────────────────────────────────────────── */
+  .setup-eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 10px; display: block;
+  }
+  .setup-headline {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-style: italic;
+    font-size: 26px; line-height: 1.25;
+    color: var(--text);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .setup-sub {
+    font-size: 14px; line-height: 1.6;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+
+  .setup-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-lg);
     padding: 20px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 
   .setup-label {
-    font-size: 12px; font-weight: 500; color: #888;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    display: block; margin-bottom: 10px;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text-subtle);
+    display: block; margin-bottom: 9px;
   }
 
   input {
-    width: 100%; padding: 13px 14px;
-    border: 1px solid rgba(0,0,0,0.12); border-radius: 10px;
-    font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
-    background: #fafaf8; outline: none; -webkit-appearance: none;
+    width: 100%; padding: 12px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    font-size: 14px; font-family: 'DM Mono', 'SF Mono', 'Fira Code', monospace;
+    background: var(--surface-alt); color: var(--text);
+    outline: none; -webkit-appearance: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  input::placeholder { color: var(--text-subtle); }
 
-  input:focus { border-color: #FF6B35; box-shadow: 0 0 0 3px rgba(255,107,53,0.12); }
-
-  .hint { font-size: 12px; color: #999; margin-top: 10px; line-height: 1.5; }
-  .hint a { color: #FF6B35; text-decoration: none; }
+  .hint { font-size: 12px; color: var(--text-muted); margin-top: 10px; line-height: 1.55; }
+  .hint a { color: var(--accent); text-decoration: none; }
+  .hint strong { font-weight: 500; }
 
   .privacy-badge {
     display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; font-weight: 500; color: #27ae60;
-    background: rgba(39,174,96,0.08); border: 0.5px solid rgba(39,174,96,0.25);
+    font-size: 11px; font-weight: 500; color: var(--positive);
+    background: var(--accent-dim);
+    border: 0.5px solid rgba(var(--accent-rgb), 0.25);
     border-radius: 6px; padding: 4px 9px; margin-top: 12px;
   }
   .privacy-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
 
-  @media (prefers-color-scheme: dark) {
-    .privacy-badge { background: rgba(39,174,96,0.1); border-color: rgba(39,174,96,0.2); color: #2ecc71; }
-  }
-
-  .disclaimer {
-    font-size: 11px; color: #bbb; text-align: center;
-    margin-top: 14px; line-height: 1.5;
-  }
-  .disclaimer a { color: #bbb; text-decoration: underline; text-underline-offset: 2px; }
-
-  @media (prefers-color-scheme: dark) {
-    .disclaimer { color: #555; }
-    .disclaimer a { color: #555; }
-  }
-
   .connect-btn {
     width: 100%; padding: 14px;
-    background: #FF6B35; color: white;
-    border: none; border-radius: 12px;
+    background: var(--accent); color: white;
+    border: none; border-radius: var(--r-md);
+    font-family: 'DM Sans', sans-serif;
     font-size: 15px; font-weight: 600;
-    cursor: pointer; letter-spacing: -0.01em;
+    letter-spacing: -0.01em;
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.15s, transform 0.1s;
   }
-  .connect-btn:active { background: #e85e2b; transform: scale(0.99); }
+  .connect-btn:hover { opacity: 0.92; }
+  .connect-btn:active { transform: scale(0.99); }
 
-  /* ─── Loading ─────────────────────────────────────────────────────────────── */
+  .disclaimer {
+    font-size: 11px; color: var(--text-subtle);
+    text-align: center; margin-top: 14px; line-height: 1.6;
+  }
+  .disclaimer a { color: var(--text-subtle); text-decoration: underline; text-underline-offset: 2px; }
+
+  /* ─── Loading ────────────────────────────────────────────────────────────────── */
   .loading-wrap { text-align: center; padding: 60px 20px; }
 
   .spinner {
-    width: 36px; height: 36px;
-    border: 2.5px solid rgba(255,107,53,0.2); border-top-color: #FF6B35;
-    border-radius: 50%; animation: spin 0.8s linear infinite;
+    width: 34px; height: 34px;
+    border: 2.5px solid var(--accent-dim);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
     margin: 0 auto 16px;
   }
-
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .loading-text { font-size: 14px; color: #888; }
+  .loading-text { font-size: 14px; color: var(--text-muted); }
 
-  .progress-wrap {
-    width: 200px; margin: 20px auto 0;
-  }
-  .dash-progress {
-    margin: 8px 0 12px;
-    width: 100%;
-  }
+  /* ─── Progress bar ───────────────────────────────────────────────────────────── */
+  .progress-wrap { width: 200px; margin: 20px auto 0; }
+  .dash-progress { margin: 8px 0 14px; width: 100%; }
   .dash-progress .progress-track { width: 100%; }
   .dash-progress .progress-label { text-align: left; }
+
   .progress-track {
-    width: 100%; height: 3px;
-    background: rgba(255,107,53,0.15);
-    border-radius: 2px; overflow: hidden;
-    position: relative;
+    width: 100%; height: 2px;
+    background: var(--accent-dim);
+    border-radius: 1px; overflow: hidden; position: relative;
   }
   .progress-bar {
-    height: 100%; border-radius: 2px;
-    background: #FF6B35;
+    height: 100%; border-radius: 1px;
+    background: var(--accent);
     width: 0%; transition: width 0.35s ease;
   }
   .progress-bar.indeterminate {
@@ -222,108 +284,108 @@
     100% { transform: translateX(430%); }
   }
   .progress-label {
-    font-size: 11px; color: #bbb;
-    margin-top: 10px; min-height: 16px;
-    text-align: center; letter-spacing: 0.01em;
-  }
-  @media (prefers-color-scheme: dark) {
-    .progress-label { color: #555; }
+    font-size: 11px; color: var(--text-subtle);
+    margin-top: 8px; min-height: 16px;
+    text-align: center;
   }
 
-  /* ─── Error ───────────────────────────────────────────────────────────────── */
+  /* ─── Error ──────────────────────────────────────────────────────────────────── */
   .error-box {
-    background: #fff0ee; border: 0.5px solid rgba(220,60,40,0.2);
-    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+    background: rgba(184,48,48,0.06);
+    border: 0.5px solid rgba(184,48,48,0.18);
+    border-radius: var(--r-md); padding: 16px; margin-bottom: 14px;
   }
-  .error-title { font-size: 14px; font-weight: 600; color: #c0392b; margin-bottom: 5px; }
-  .error-msg { font-size: 13px; color: #a93226; line-height: 1.5; }
-  .back-btn { background: none; border: none; font-size: 14px; color: #888; padding: 8px 0; cursor: pointer; }
+  .error-title { font-size: 14px; font-weight: 600; color: var(--negative); margin-bottom: 5px; }
+  .error-msg { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .back-btn {
+    background: none; border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--text-muted);
+    padding: 8px 0; cursor: pointer;
+  }
 
-  /* ─── Dashboard ───────────────────────────────────────────────────────────── */
+  /* ─── Dashboard layout ───────────────────────────────────────────────────────── */
   .dash-main {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 16px;
   }
-
   @media (min-width: 768px) {
-    .dash-main { flex-direction: row; align-items: flex-start; gap: 28px; }
-    .dash-left { flex: 1; min-width: 0; }
-    .dash-right { width: 320px; flex-shrink: 0; }
+    .dash-main { grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
+    .dash-right { position: sticky; top: 72px; }
   }
-
   @media (min-width: 1024px) {
-    .dash-right { width: 340px; }
+    .dash-main { grid-template-columns: 1fr 240px; }
   }
 
-  @media (min-width: 1400px) {
-    .dash-right { width: 360px; }
-  }
-
-  .dash-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 14px;
-  }
-
-  .date-range { font-size: 12px; color: #888; }
-
+  /* ─── Date / cache badge ─────────────────────────────────────────────────────── */
+  .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .date-range { font-size: 12px; color: var(--text-subtle); font-weight: 400; }
   .cache-badge {
-    font-size: 11px; color: #aaa; background: #eeecea;
+    font-size: 11px; color: var(--text-subtle);
+    background: var(--surface-alt);
     border-radius: 6px; padding: 3px 8px;
   }
 
-  /* Stats */
+  /* ─── Stat cards ─────────────────────────────────────────────────────────────── */
   .stats-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px; margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-bottom: 14px;
   }
 
-  .stat-card { background: #eeecea; border-radius: 12px; padding: 12px; }
+  .stat-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 12px;
+  }
 
   .stat-label {
-    font-size: 10px; font-weight: 600; color: #666;
-    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px;
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text-subtle);
+    margin-bottom: 6px;
   }
 
-  .stat-value { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: #1a1a18; }
+  .stat-value {
+    font-size: 17px; font-weight: 600;
+    letter-spacing: -0.03em; line-height: 1.1;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
 
-  /* Chart */
+  /* ─── Chart ──────────────────────────────────────────────────────────────────── */
   .chart-card {
-    background: #fff; border: 0.5px solid rgba(0,0,0,0.08);
-    border-radius: 16px; padding: 16px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 16px 14px 12px;
   }
 
-  .chart-wrap { position: relative; width: 100%; height: 200px; }
+  .chart-wrap { position: relative; width: 100%; height: 210px; }
   .chart-wrap canvas { touch-action: none; }
 
-  @media (min-width: 768px) {
-    .chart-wrap { height: 300px; }
-  }
+  @media (min-width: 768px)  { .chart-wrap { height: 300px; } }
+  @media (min-width: 1024px) { .chart-wrap { height: 320px; } }
+  @media (min-width: 1400px) { .chart-wrap { height: 360px; } }
 
-  @media (min-width: 1024px) {
-    .chart-wrap { height: 320px; }
-  }
-
-  @media (min-width: 1400px) {
-    .chart-wrap { height: 360px; }
-  }
-
-  /* Accounts */
+  /* ─── Accounts ───────────────────────────────────────────────────────────────── */
   .section-label {
-    font-size: 11px; font-weight: 600; color: #aaa;
-    text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-subtle);
     margin-bottom: 10px; display: block;
   }
 
   .accounts-divider {
     display: none;
-    border: none; border-top: 0.5px solid rgba(0,0,0,0.07);
-    margin-bottom: 10px;
+    border: none; border-top: 0.5px solid var(--border);
+    margin-bottom: 12px;
   }
-
   @media (min-width: 768px) {
     .accounts-divider { display: block; }
-    .section-label { margin-top: 4px; }
+    .section-label { margin-top: 2px; }
   }
 
   .accounts-grid {
@@ -331,94 +393,148 @@
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-
   @media (min-width: 768px) {
     .dash-right .accounts-grid { grid-template-columns: 1fr; }
   }
 
   .account-card {
-    background: #fff; border: 0.5px solid rgba(0,0,0,0.08);
-    border-radius: 12px; padding: 13px 14px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 13px 14px;
   }
 
   .account-name {
-    font-size: 11px; color: #888;
+    font-size: 11px; color: var(--text-muted);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-bottom: 4px;
+    margin-bottom: 5px; font-weight: 400;
   }
 
-  .account-balance { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: #1a1a18; }
+  .account-balance {
+    font-size: 16px; font-weight: 600;
+    letter-spacing: -0.02em; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
 
-  .muted { color: #888; }
-  .hidden { display: none !important; }
+  /* ─── Modal ──────────────────────────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex; align-items: flex-end;
+    z-index: 100;
+    padding: 16px;
+  }
+  @media (min-width: 480px) {
+    .modal-overlay { align-items: center; }
+  }
 
-  /* ─── Footer ─────────────────────────────────────────────────────────────── */
+  .modal-box {
+    background: var(--surface);
+    border: 0.5px solid var(--border-strong);
+    border-radius: var(--r-lg);
+    padding: 28px 24px 24px;
+    width: 100%; max-width: 360px;
+    margin: 0 auto;
+    text-align: center;
+    animation: modal-in 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .modal-icon-wrap {
+    width: 48px; height: 48px;
+    background: var(--surface-alt);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+  }
+  .modal-icon-wrap svg {
+    width: 22px; height: 22px;
+    stroke: var(--text-muted); fill: none;
+    stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .modal-title {
+    font-size: 17px; font-weight: 600;
+    letter-spacing: -0.02em; color: var(--text);
+    margin-bottom: 8px;
+  }
+  .modal-desc {
+    font-size: 14px; line-height: 1.6;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+  .modal-btns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  }
+  .modal-cancel {
+    padding: 12px;
+    background: var(--surface-alt);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .modal-cancel:hover { background: var(--border); }
+
+  .modal-confirm {
+    padding: 12px;
+    border: none; border-radius: var(--r-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+  .modal-confirm.confirm-primary {
+    background: var(--accent); color: white;
+  }
+  .modal-confirm.confirm-primary:hover { opacity: 0.9; }
+  .modal-confirm.confirm-danger {
+    background: var(--negative); color: white;
+  }
+  .modal-confirm.confirm-danger:hover { opacity: 0.9; }
+
+  /* ─── Footer ─────────────────────────────────────────────────────────────────── */
   .app-footer {
-    padding: 24px 16px 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    border-top: 0.5px solid rgba(0,0,0,0.07);
+    text-align: center; padding: 28px 16px 24px;
+    font-size: 11px; color: var(--text-subtle);
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap;
   }
-  .footer-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .footer-mark {
-    width: 24px; height: 24px; flex-shrink: 0;
-  }
-  .upzen-mark-light { display: none; }
-  .upzen-mark-dark  { display: block; }
-  .footer-copy {
-    font-size: 11px;
-    color: #888;
-  }
-  .footer-right {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .footer-link {
-    font-size: 11px;
-    color: #999;
-    text-decoration: none;
-    padding: 4px 8px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: color 0.15s, background 0.15s;
-  }
-  .footer-link:hover { color: #555; background: rgba(0,0,0,0.04); }
-  .footer-link svg { width: 13px; height: 13px; fill: currentColor; flex-shrink: 0; }
-  .footer-sep { color: #ddd; font-size: 11px; }
-  @media (min-width: 768px) {
-    .app-footer { padding: 24px 32px 28px; }
-  }
-  @media (prefers-color-scheme: dark) {
-    .app-footer { border-top-color: rgba(255,255,255,0.07); }
-    .upzen-mark-light { display: block; }
-    .upzen-mark-dark  { display: none; }
-    .footer-copy { color: #555; }
-    .footer-link { color: #555; }
-    .footer-link:hover { color: #888; background: rgba(255,255,255,0.05); }
-    .footer-sep { color: #333; }
-  }
+  .app-footer a { color: var(--text-subtle); text-decoration: underline; text-underline-offset: 2px; }
+  .app-footer a:hover { color: var(--text-muted); }
+  .footer-sep { color: var(--border-strong); }
+
+  /* ─── Utility ────────────────────────────────────────────────────────────────── */
+  .muted   { color: var(--text-muted); }
+  .hidden  { display: none !important; }
 </style>
 </head>
 <body>
 
+<!-- Header -->
 <div class="header">
   <div class="logo">
     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
   </div>
-  <span class="header-title">Up Wealth</span>
-  <div class="header-right">
-    <button class="refresh-btn" id="refresh-btn" onclick="refresh()">↻ Refresh</button>
-    <button class="disconnect-btn hidden" id="disconnect-btn" onclick="reset()">Disconnect</button>
+  <div class="header-wordmark">
+    <span class="wordmark-brand">upzen</span>
+    <span class="wordmark-product">wealth</span>
+  </div>
+  <div class="header-actions hidden" id="header-actions">
+    <button class="action-btn" id="resync-btn" onclick="promptResync()">
+      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      Resync
+    </button>
+    <button class="action-btn action-btn-danger" onclick="promptDisconnect()">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Disconnect
+    </button>
   </div>
 </div>
 
@@ -426,12 +542,11 @@
 
   <!-- Setup -->
   <div id="setup">
-    <div style="margin-bottom:20px;">
-      <p style="font-size:15px;line-height:1.6;color:#555;margin-bottom:0;">
-        See your total Up balance charted over time, reconstructed from your transaction history. Your token stays on your device.
-      </p>
-    </div>
-    <div class="setup-wrap">
+    <span class="setup-eyebrow">upzen wealth</span>
+    <h1 class="setup-headline">Your balance,<br>over time.</h1>
+    <p class="setup-sub">Connect your Up account to see your total balance charted over your full history — reconstructed from your transactions, privately, on your device.</p>
+
+    <div class="setup-card">
       <label class="setup-label" for="token-input">Personal Access Token</label>
       <input type="password" id="token-input" placeholder="up:yeah:xxxxxxxxxxxx" autocomplete="off" autocorrect="off" spellcheck="false" oninput="saveTokenImmediate(this.value)">
       <p class="hint">Get yours at <a href="https://api.up.com.au">api.up.com.au</a> or in the Up app under <strong>Settings → Data Sharing</strong></p>
@@ -446,7 +561,7 @@
     <p class="disclaimer">Unofficial tool — not affiliated with or endorsed by Up Banking.<br>Use is subject to the <a href="https://api.up.com.au" target="_blank">Up API terms</a>.</p>
   </div>
 
-  <!-- Loading (accounts fetch only — transactions show on dashboard directly) -->
+  <!-- Loading -->
   <div id="loading" class="hidden">
     <div class="loading-wrap">
       <div class="spinner"></div>
@@ -472,6 +587,7 @@
           <p class="date-range" id="date-range"></p>
           <span class="cache-badge hidden" id="cache-badge"></span>
         </div>
+
         <div class="stats-grid">
           <div class="stat-card">
             <p class="stat-label">Balance</p>
@@ -486,7 +602,8 @@
             <p class="stat-value" id="stat-accounts"></p>
           </div>
         </div>
-        <!-- Inline progress — shown while transactions are loading on the dashboard -->
+
+        <!-- Progress bar (shown during transaction loading) -->
         <div id="progress-wrap" class="dash-progress hidden">
           <div class="progress-track">
             <div class="progress-bar indeterminate" id="progress-bar"></div>
@@ -496,7 +613,7 @@
 
         <div class="chart-card">
           <div class="chart-wrap">
-            <canvas id="wealth-chart" role="img" aria-label="Line chart of Up Bank balance over time">Balance history</canvas>
+            <canvas id="wealth-chart" role="img" aria-label="Line chart of Up balance over time">Balance history</canvas>
           </div>
         </div>
       </div>
@@ -512,48 +629,32 @@
 
 </div>
 
+<!-- Confirmation modal -->
+<div id="modal" class="modal-overlay hidden" onclick="closeModal(event)">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-icon-wrap" id="modal-icon-wrap"></div>
+    <h3 class="modal-title" id="modal-title"></h3>
+    <p class="modal-desc" id="modal-desc"></p>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" id="modal-confirm" onclick="confirmModal()"></button>
+    </div>
+  </div>
+</div>
+
 <footer class="app-footer">
-
-  <div class="footer-left">
-    <!-- Light mark (white circle) — shown in dark mode -->
-    <svg class="footer-mark upzen-mark-light" viewBox="0 0 79.67 79.67" xmlns="http://www.w3.org/2000/svg" aria-label="upzen">
-      <circle fill="#fff" cx="39.83" cy="39.83" r="39.83"/>
-      <path fill="rgba(76,174,80,0.72)" d="M56.57,28.71h-22.16c-3.1,0-5.61-2.51-5.61-5.61s2.51-5.61,5.61-5.61h22.16c3.1,0,5.61,2.51,5.61,5.61s-2.51,5.61-5.61,5.61Z"/>
-      <path fill="rgba(76,174,80,0.72)" d="M45.26,62.18H23.1c-3.1,0-5.61-2.51-5.61-5.61s2.51-5.61,5.61-5.61h22.16c3.1,0,5.61,2.51,5.61,5.61s-2.51,5.61-5.61,5.61Z"/>
-      <path fill="rgba(76,174,80,0.72)" d="M23.1,62.18c-1.44,0-2.87-.55-3.97-1.64-2.19-2.19-2.19-5.74,0-7.93L52.6,19.14c2.19-2.19,5.74-2.19,7.93,0,2.19,2.19,2.19,5.74,0,7.93L27.07,60.53c-1.1,1.1-2.53,1.64-3.97,1.64Z"/>
-      <path fill="rgba(76,174,80,0.72)" d="M56.57,50.87c-3.1,0-5.61-2.51-5.61-5.61V23.1c0-3.1,2.51-5.61,5.61-5.61s5.61,2.51,5.61,5.61v22.16c0,3.1-2.51,5.61-5.61,5.61Z"/>
-    </svg>
-    <!-- Dark mark (#333 circle) — shown in light mode -->
-    <svg class="footer-mark upzen-mark-dark" viewBox="0 0 79.67 79.67" xmlns="http://www.w3.org/2000/svg" aria-label="upzen">
-      <circle fill="#333" cx="39.83" cy="39.83" r="39.83"/>
-      <path fill="rgba(76,174,80,0.72)" d="M56.57,28.71h-22.16c-3.1,0-5.61-2.51-5.61-5.61s2.51-5.61,5.61-5.61h22.16c3.1,0,5.61,2.51,5.61,5.61s-2.51,5.61-5.61,5.61Z"/>
-      <path fill="rgba(76,174,80,0.72)" d="M45.26,62.18H23.1c-3.1,0-5.61-2.51-5.61-5.61s2.51-5.61,5.61-5.61h22.16c3.1,0,5.61,2.51,5.61,5.61s-2.51,5.61-5.61,5.61Z"/>
-      <path fill="rgba(76,174,80,0.72)" d="M23.1,62.18c-1.44,0-2.87-.55-3.97-1.64-2.19-2.19-2.19-5.74,0-7.93L52.6,19.14c2.19-2.19,5.74-2.19,7.93,0,2.19,2.19,2.19,5.74,0,7.93L27.07,60.53c-1.1,1.1-2.53,1.64-3.97,1.64Z"/>
-      <path fill="rgba(76,174,80,0.72)" d="M56.57,50.87c-3.1,0-5.61-2.51-5.61-5.61V23.1c0-3.1,2.51-5.61,5.61-5.61s5.61,2.51,5.61,5.61v22.16c0,3.1-2.51,5.61-5.61,5.61Z"/>
-    </svg>
-    <span class="footer-copy">© upzen</span>
-  </div>
-
-  <div class="footer-right">
-    <a class="footer-link" href="https://github.com/upzen-co/up-bank-wealth-chart" target="_blank" rel="noopener" aria-label="View on GitHub">
-      <svg viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg">
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z"/>
-      </svg>
-      GitHub
-    </a>
-    <span class="footer-sep">·</span>
-    <a class="footer-link" href="https://upzen.co">upzen.co</a>
-    <span class="footer-sep">·</span>
-    <span class="footer-copy">v1.0.6</span>
-  </div>
-
+  <span>v1.0.7</span>
+  <span class="footer-sep">·</span>
+  <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
+  <span class="footer-sep">·</span>
+  <a href="https://upzen.co" target="_blank">upzen.co</a>
 </footer>
 
 <script>
 const BASE        = 'https://api.up.com.au/api/v1';
 const TOKEN_KEY   = 'upwealth_token';
 const LS_LEGACY   = 'upwealth_v3';    // old localStorage key — migrated on first load
-const APP_VERSION = '1.0.6';          // bump this with every GitHub Pages publish
+const APP_VERSION = '1.0.7';          // bump this with every GitHub Pages publish
 const DB_NAME     = 'upwealth_db';
 const DB_STORE    = 'cache';
 const DB_KEY      = 'main';
@@ -813,6 +914,76 @@ async function clearCache() {
   try { await _idbDel(DB_KEY); } catch {}
   try { localStorage.removeItem(TOKEN_KEY); } catch {}
   try { localStorage.removeItem(LS_LEGACY); } catch {}
+}
+
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+let _modalConfirmFn = null;
+
+function showModal(opts) {
+  // opts: { icon, title, desc, confirmLabel, confirmClass, onConfirm }
+  document.getElementById('modal-icon-wrap').innerHTML = opts.icon;
+  document.getElementById('modal-title').textContent   = opts.title;
+  document.getElementById('modal-desc').textContent    = opts.desc;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent  = opts.confirmLabel;
+  btn.className    = 'modal-confirm ' + (opts.confirmClass || '');
+  _modalConfirmFn  = opts.onConfirm;
+  document.getElementById('modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal')) return;
+  document.getElementById('modal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function confirmModal() {
+  document.getElementById('modal').classList.add('hidden');
+  document.body.style.overflow = '';
+  if (_modalConfirmFn) _modalConfirmFn();
+}
+
+// ─── Resync ───────────────────────────────────────────────────────────────────
+function promptResync() {
+  showModal({
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+      <path d="M3 3v5h5"/>
+    </svg>`,
+    title:        'Resync all data?',
+    desc:         'All cached transactions will be cleared and re-downloaded from Up. Your API token is kept.',
+    confirmLabel: 'Resync',
+    confirmClass: 'confirm-primary',
+    onConfirm:    doResync,
+  });
+}
+
+async function doResync() {
+  const savedToken = token || localStorage.getItem(TOKEN_KEY);
+  await _idbDel(DB_KEY);
+  token = savedToken;
+  localStorage.setItem(TOKEN_KEY, token);
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  hasDashboard = false;
+  await fetchAndRender();
+}
+
+// ─── Disconnect ───────────────────────────────────────────────────────────────
+function promptDisconnect() {
+  showModal({
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>`,
+    title:        'Disconnect?',
+    desc:         'Your API token and all cached data will be removed from this device.',
+    confirmLabel: 'Disconnect',
+    confirmClass: 'confirm-danger',
+    onConfirm:    reset,
+  });
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -1158,8 +1329,9 @@ function renderDashboard(accounts, series, cacheTs) {
   // First render — create chart
   const ctx = document.getElementById('wealth-chart').getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, 300);
-  grad.addColorStop(0, 'rgba(255,107,53,0.2)');
-  grad.addColorStop(1, 'rgba(255,107,53,0.0)');
+  const accentRgb = isDark ? '82,183,136' : '45,106,79';
+  grad.addColorStop(0, `rgba(${accentRgb},0.22)`);
+  grad.addColorStop(1, `rgba(${accentRgb},0.0)`);
 
   // ─── Quarter / new-year grid lines ──────────────────────────────────────────
   const quarterGridPlugin = {
@@ -1206,7 +1378,7 @@ function renderDashboard(accounts, series, cacheTs) {
       labels,
       datasets: [{
         data: values,
-        borderColor: '#FF6B35',
+        borderColor: isDark ? '#52B788' : '#2D6A4F',
         borderWidth: 2,
         backgroundColor: grad,
         fill: true,
@@ -1447,4 +1619,3 @@ async function resumeLoad(partial) {
 </script>
 </body>
 </html>
-
