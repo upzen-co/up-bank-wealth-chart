@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.5] - 2026-06-01
+
+### Added
+- **Instant dashboard** — the dashboard is now shown immediately after accounts are fetched (typically under one second), rather than waiting for the full transaction history to load. Account balances and card names are visible from the start.
+- **Live chart filling** — the chart renders incrementally as each page of 100 transactions arrives. The line grows leftward (oldest to newest) in real time, so users can watch their full balance history take shape rather than staring at a loading screen.
+- **Progress bar on dashboard** — the transaction progress bar and ETA countdown are now displayed inline on the dashboard (between the stats and chart), rather than on a separate loading screen. The bar auto-hides 600ms after loading completes.
+- **Crash resume shows existing data instantly** — when recovering from a crash, the dashboard now shows immediately with all previously saved transactions. The chart extends leftward as older transactions are fetched, consistent with the normal load experience.
+
+### Changed
+- **`renderDashboard` updates chart in-place** — if a chart instance already exists, `renderDashboard` now updates `labels` and `data` directly and calls `chartInst.update('none')` rather than destroying and recreating the `Chart` instance. This eliminates flicker and avoids re-initialising the gradient, quarter-grid plugin, and pinch-to-zoom touch handlers on every page.
+- **Empty series handled gracefully** — `renderDashboard` now accepts an empty series (`[]`) without crashing. Balance is read from live account data, the change stat shows `—`, and the date range shows `Loading history…` until transactions arrive.
+- **Loading screen simplified** — the loading screen is now shown only briefly while the accounts request resolves (usually < 1s). It no longer hosts the progress bar, which has moved to the dashboard.
+
+---
+
 ## [1.0.4] - 2026-05-31
 
 ### Added
