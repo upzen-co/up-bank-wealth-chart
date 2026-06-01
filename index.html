@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Up Wealth">
+<meta name="theme-color" content="#FF6B35">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -27,7 +33,6 @@
     input::placeholder { color: #555; }
     .hint { color: #666; }
     .stat-card { background: #242422; }
-    .chart-card { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
     .account-card { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
     .error-box { background: rgba(220,60,40,0.12); border-color: rgba(220,60,40,0.25); }
     .error-title { color: #ff7c6a; }
@@ -358,6 +363,7 @@
   .app-footer a:hover { color: #888; }
   .footer-sep { color: #ddd; }
   @media (prefers-color-scheme: dark) {
+    .chart-card { background: #1c1c1a; border-color: rgba(255,255,255,0.08); }
     .app-footer { color: #444; }
     .app-footer a { color: #444; }
     .app-footer a:hover { color: #666; }
@@ -469,7 +475,7 @@
 </div>
 
 <footer class="app-footer">
-  <span>v1.0.5</span>
+  <span>v1.0.6</span>
   <span class="footer-sep">·</span>
   <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
   <span class="footer-sep">·</span>
@@ -480,7 +486,7 @@
 const BASE        = 'https://api.up.com.au/api/v1';
 const TOKEN_KEY   = 'upwealth_token';
 const LS_LEGACY   = 'upwealth_v3';    // old localStorage key — migrated on first load
-const APP_VERSION = '1.0.5';          // bump this with every GitHub Pages publish
+const APP_VERSION = '1.0.6';          // bump this with every GitHub Pages publish
 const DB_NAME     = 'upwealth_db';
 const DB_STORE    = 'cache';
 const DB_KEY      = 'main';
@@ -560,8 +566,9 @@ function _renderProgress() {
 function setProgress(fetched, estimated, elapsedMs) {
   const wrap = document.getElementById('progress-wrap');
   if (wrap) wrap.classList.remove('hidden');
-  _prog.fetched    = fetched;
-  _prog.estimated  = estimated || 0;
+  _prog.fetched = fetched;
+  // null = preserve existing estimate (used by crash-resume path)
+  if (estimated != null) _prog.estimated = estimated;
   if (!_prog.startTime && elapsedMs != null)
     _prog.startTime = Date.now() - elapsedMs;
   _renderProgress();
@@ -634,14 +641,14 @@ function saveTokenImmediate(val) {
   if (v) try { localStorage.setItem(TOKEN_KEY, v); } catch {}
 }
 
-function _openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE);
-    req.onsuccess  = e => resolve(e.target.result);
-    req.onerror    = () => reject(req.error);
-  });
-}
+// Open IndexedDB eagerly at module load — reduces init() latency on PWA startup
+const _dbPromise = new Promise((resolve, reject) => {
+  const req = indexedDB.open(DB_NAME, 1);
+  req.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE);
+  req.onsuccess  = e => resolve(e.target.result);
+  req.onerror    = () => reject(req.error);
+});
+function _openDB() { return _dbPromise; }
 async function _idbGet(key) {
   const db = await _openDB();
   return new Promise((resolve, reject) => {
@@ -830,6 +837,20 @@ function mergeTxs(cached, fresh) {
     if (!seen.has(tx.id)) { merged.push(tx); seen.add(tx.id); }
   }
   return merged;
+}
+
+// ─── Estimation helper ───────────────────────────────────────────────────────────
+
+// Compute estimated total tx count from observed density extrapolated to account age.
+function computeEstimate(txs, startMs) {
+  if (txs.length < 10 || !startMs) return 0;
+  const dates = txs.map(t => t.createdAt || t.settledAt).filter(Boolean).sort();
+  if (dates.length < 2) return 0;
+  const spanDays    = (new Date(dates[dates.length - 1]) - new Date(dates[0])) / 86400000;
+  if (spanDays < 0.5) return 0;
+  const txPerDay    = txs.length / spanDays;
+  const accountDays = (Date.now() - startMs) / 86400000;
+  return Math.ceil(txPerDay * accountDays);
 }
 
 // ─── Balance reconstruction ───────────────────────────────────────────────────
@@ -1123,10 +1144,9 @@ function renderDashboard(accounts, series, cacheTs) {
         backgroundColor: grad,
         fill: true,
         tension: 0.35,
-        pointRadius: series.length > 60 ? 0 : 3,
-        pointHoverRadius: 5,
-        pointBackgroundColor: '#FF6B35',
-        pointBorderColor: '#FF6B35',
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHitRadius: 10,
       }]
     },
     plugins: [quarterGridPlugin],
@@ -1152,27 +1172,38 @@ function renderDashboard(accounts, series, cacheTs) {
           afterBuildTicks(scale) {
             const allLabels = scale.chart.data.labels || [];
             if (!allLabels.length) return;
+            const w = scale.chart.width || 300;
 
             const yearIdx = [], quarterIdx = [];
+            // monthFirst: first index seen for each "YYYY-MM" key — guarantees 1 per month
+            const monthFirst = {};
+
             allLabels.forEach((lbl, i) => {
-              const [, mm, dd] = lbl.split('-').map(Number);
-              if (mm === 1  && dd === 1) yearIdx.push(i);
+              const [year, mm, dd] = lbl.split('-').map(Number);
+              if (mm === 1 && dd === 1) yearIdx.push(i);
               else if (dd === 1 && (mm === 4 || mm === 7 || mm === 10)) quarterIdx.push(i);
+              const mk = `${year}-${mm}`;
+              if (!(mk in monthFirst)) monthFirst[mk] = i;
             });
 
-            // No year boundaries visible — leave defaults (handles tight zoom)
-            if (!yearIdx.length) return;
-
-            // Use canvas width as proxy (chartArea not yet available here)
-            const w = scale.chart.width || 300;
-            const totalWithQ = yearIdx.length + quarterIdx.length;
-            const showQuarters = totalWithQ * 58 < w;
-
-            const chosen = showQuarters
-              ? [...yearIdx, ...quarterIdx].sort((a, b) => a - b)
-              : yearIdx;
-
-            scale.ticks = chosen.map(v => ({ value: v, label: allLabels[v] }));
+            if (yearIdx.length > 0) {
+              // Long history: years always shown, quarters if space allows
+              const totalWithQ = yearIdx.length + quarterIdx.length;
+              const showQ = totalWithQ * 58 < w;
+              const chosen = showQ
+                ? [...yearIdx, ...quarterIdx].sort((a, b) => a - b)
+                : yearIdx;
+              scale.ticks = chosen.map(v => ({ value: v, label: allLabels[v] }));
+            } else {
+              // Short/zoomed range: show months, max 1 per month, thinned if crowded
+              const monthIdx = Object.values(monthFirst).sort((a, b) => a - b);
+              if (!monthIdx.length) return;
+              const maxTicks = Math.max(1, Math.floor(w / 58));
+              const step = Math.max(1, Math.ceil(monthIdx.length / maxTicks));
+              scale.ticks = monthIdx
+                .filter((_, i) => i % step === 0)
+                .map(v => ({ value: v, label: allLabels[v] }));
+            }
           },
           ticks: {
             color: isDark ? '#999' : '#aaa',
@@ -1182,10 +1213,9 @@ function renderDashboard(accounts, series, cacheTs) {
               const lbl = this.getLabelForValue(val);
               if (!lbl) return '';
               const [year, month, day] = lbl.split('-').map(Number);
-              if (month === 1  && day === 1) return String(year);
+              if (month === 1 && day === 1) return String(year);
               const qMap = { 4: 'Q2', 7: 'Q3', 10: 'Q4' };
               if (qMap[month] && day === 1) return qMap[month];
-              // Zoomed in — show month abbreviation
               return MONTHS_SHORT[month - 1];
             }
           },
@@ -1284,18 +1314,21 @@ async function resumeLoad(partial) {
     const alreadyCount = existingTxs.length;
     resetProgress();
     _prog.fetched   = alreadyCount;
-    _prog.estimated = 0;
+    // Pre-seed estimate from existing transactions so ETA is meaningful immediately
+    _prog.estimated = computeEstimate(existingTxs, startMs);
 
     let olderTxs = [];
     if (oldestCreatedAt) {
       olderTxs = await fetchOlderThan(
         oldestCreatedAt,
-        (n, est, elapsed) => setProgress(alreadyCount + n, est, elapsed),
+        // Pass null for estimated — onPage keeps _prog.estimated accurate from all txs
+        (n, _unused, elapsed) => setProgress(alreadyCount + n, null, elapsed),
         startMs,
         async (_page, accumulated) => {
           const merged = mergeTxs(existingTxs, accumulated.map(slimTx));
+          // Recompute estimate from ALL transactions — most accurate possible
+          _prog.estimated = computeEstimate(merged, startMs);
           await savePartial(accounts, merged);
-          // Extend chart leftward as older transactions arrive
           renderDashboard(accounts, buildSeries(accounts, merged), null);
         }
       );
