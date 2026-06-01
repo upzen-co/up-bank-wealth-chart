@@ -632,9 +632,8 @@ function show(id) {
   ['setup', 'loading', 'error-screen', 'dashboard'].forEach(s => {
     document.getElementById(s).classList.toggle('hidden', s !== id);
   });
-  const isDash = id === 'dashboard';
-  document.getElementById('disconnect-btn').classList.toggle('hidden', !isDash);
-  document.getElementById('refresh-btn').classList.toggle('visible', isDash);
+  const el = document.getElementById('header-actions');
+  if (el) el.classList.toggle('hidden', id !== 'dashboard');
 }
 
 function setMsg(m) { document.getElementById('loading-msg').textContent = m; }
@@ -1154,9 +1153,8 @@ async function connect() {
 }
 
 async function refresh() {
-  const btn = document.getElementById('refresh-btn');
-  btn.innerHTML = '<span class="spin">↻</span> Refreshing…';
-  btn.disabled = true;
+  const btn = document.getElementById('resync-btn');
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
   try {
     setMsg('Refreshing accounts…');
     const accounts = await fetchAll('/accounts');
@@ -1193,8 +1191,7 @@ async function refresh() {
       : e.message;
     show('error-screen');
   } finally {
-    btn.innerHTML = '↻ Refresh';
-    btn.disabled = false;
+    if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
   }
 }
 
