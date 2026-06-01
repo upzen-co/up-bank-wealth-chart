@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.7] - 2026-06-01
+
+### Added
+- **Resync action** — new header button that clears all cached transaction data and re-downloads everything from scratch while keeping the API token. Requires confirmation before proceeding.
+- **Confirmation modals** — both Resync and Disconnect now present an animated bottom-sheet modal (slides up on mobile, centres on desktop) with a description of what the action will do and explicit Cancel / confirm buttons. Tapping outside the modal dismisses it.
+- **Disconnect with confirmation** — the previous silent disconnect button has been replaced with a deliberate modal-gated action.
+- **`doResync()` / `promptResync()` / `promptDisconnect()` / `showModal()` / `closeModal()` / `confirmModal()`** — new JS functions managing the modal system and resync flow.
+
+### Changed
+- **Complete visual rebrand to upzen** — removed all Up Bank orange. New design language uses CSS custom properties throughout (`--accent`, `--bg`, `--surface`, `--text`, `--text-muted`, etc.) with a single dark-mode block that overrides the variable values, eliminating all previous CSS cascade ordering issues.
+- **Colour palette** — light mode: warm cream background (`#F0EDE8`), forest green accent (`#2D6A4F`). Dark mode: deep ink-green background (`#0D1410`), sage green accent (`#52B788`). Positive/negative states use green and red respectively in both modes.
+- **Typography** — added Google Fonts: *DM Serif Display* (italic) for the brand wordmark and setup headline; *DM Sans* for all UI text. Numbers use `font-variant-numeric: tabular-nums` for stable column alignment.
+- **Header wordmark** — "Up Wealth" replaced with the upzen logotype: *upzen* in italic DM Serif Display (accent colour) + "wealth" in DM Sans (muted).
+- **Header actions** — "↻ Refresh" and text "Disconnect" replaced with icon + label buttons: a circular-arrows Resync button and a log-out-arrow Disconnect button, both styled with appropriate danger/primary treatment.
+- **Setup screen** — redesigned with an upzen eyebrow label, an italic serif headline ("Your balance, over time."), and a cleaner card layout for the token input.
+- **Stat cards** — use `var(--surface)` with a thin border; labels are smaller and subtler; values use tabular numeric figures.
+- **Chart** — line and gradient fill updated to the new accent green. Grid lines and tick colours inherit from the new variable system.
+- **PWA icon** — regenerated in forest green (`#2D6A4F`) to match the new palette.
+- **`theme-color`** — updated to `#2D6A4F` (light) and `#0D1410` (dark) via dual `<meta name="theme-color">` tags.
+- **App title** — changed from "Up Wealth" to "upzen wealth" in `<title>`, `apple-mobile-web-app-title`, and footer.
+- **Footer** — simplified to "v1.0.7 · About · upzen.co".
+
+---
+
 ## [1.0.6] - 2026-06-01
 
 ### Fixed
