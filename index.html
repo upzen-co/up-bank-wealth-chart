@@ -1073,19 +1073,19 @@ function renderDashboard(accounts, series, cacheTs) {
   grad.addColorStop(0, 'rgba(255,107,53,0.2)');
   grad.addColorStop(1, 'rgba(255,107,53,0.0)');
 
-  // ─── Quarter grid lines plugin ───────────────────────────────────────────────
+  // ─── Quarter / new-year grid lines ──────────────────────────────────────────
   const quarterGridPlugin = {
     id: 'quarterGrid',
     afterDraw(chart) {
       const { ctx, chartArea, scales, data } = chart;
       const xScale = scales.x;
-      const labels = data.labels;
+      const lbls = data.labels;
       const dark = matchMedia('(prefers-color-scheme: dark)').matches;
       ctx.save();
-      labels.forEach((label, i) => {
+      lbls.forEach((label, i) => {
         const [, mm, dd] = label.split('-').map(Number);
-        const isNewYear  = mm === 1  && dd === 1;
-        const isQuarter  = dd === 1 && (mm === 4 || mm === 7 || mm === 10);
+        const isNewYear = mm === 1  && dd === 1;
+        const isQuarter = dd === 1  && (mm === 4 || mm === 7 || mm === 10);
         if (!isNewYear && !isQuarter) return;
         const x = xScale.getPixelForValue(i);
         if (x < chartArea.left || x > chartArea.right) return;
@@ -1093,11 +1093,13 @@ function renderDashboard(accounts, series, cacheTs) {
         ctx.moveTo(x, chartArea.top);
         ctx.lineTo(x, chartArea.bottom);
         if (isNewYear) {
-          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.22)';
+          // Solid, clearly visible year divider
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.22)';
           ctx.lineWidth = 1.5;
           ctx.setLineDash([]);
         } else {
-          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+          // Dashed quarter divider — subtler but still legible in dark mode
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 4]);
         }
@@ -1107,6 +1109,8 @@ function renderDashboard(accounts, series, cacheTs) {
       ctx.restore();
     }
   };
+
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   chartInst = new Chart(ctx, {
     type: 'line',
@@ -1141,17 +1145,61 @@ function renderDashboard(accounts, series, cacheTs) {
       },
       scales: {
         x: {
-          ticks: { color: isDark ? '#777' : '#bbb', font: { size: 10 }, maxTicksLimit: 6, maxRotation: 0 },
+          // ── Smart tick placement ───────────────────────────────────────────
+          // Priority 1: year boundaries (Jan 1 → "2024")
+          // Priority 2: quarters (Apr/Jul/Oct 1 → "Q2/Q3/Q4") if space allows
+          // Fallback: Chart.js auto-ticks with abbreviated month labels (zoomed in)
+          afterBuildTicks(scale) {
+            const allLabels = scale.chart.data.labels || [];
+            if (!allLabels.length) return;
+
+            const yearIdx = [], quarterIdx = [];
+            allLabels.forEach((lbl, i) => {
+              const [, mm, dd] = lbl.split('-').map(Number);
+              if (mm === 1  && dd === 1) yearIdx.push(i);
+              else if (dd === 1 && (mm === 4 || mm === 7 || mm === 10)) quarterIdx.push(i);
+            });
+
+            // No year boundaries visible — leave defaults (handles tight zoom)
+            if (!yearIdx.length) return;
+
+            // Use canvas width as proxy (chartArea not yet available here)
+            const w = scale.chart.width || 300;
+            const totalWithQ = yearIdx.length + quarterIdx.length;
+            const showQuarters = totalWithQ * 58 < w;
+
+            const chosen = showQuarters
+              ? [...yearIdx, ...quarterIdx].sort((a, b) => a - b)
+              : yearIdx;
+
+            scale.ticks = chosen.map(v => ({ value: v, label: allLabels[v] }));
+          },
+          ticks: {
+            color: isDark ? '#999' : '#aaa',
+            font: { size: 10 },
+            maxRotation: 0,
+            callback(val) {
+              const lbl = this.getLabelForValue(val);
+              if (!lbl) return '';
+              const [year, month, day] = lbl.split('-').map(Number);
+              if (month === 1  && day === 1) return String(year);
+              const qMap = { 4: 'Q2', 7: 'Q3', 10: 'Q4' };
+              if (qMap[month] && day === 1) return qMap[month];
+              // Zoomed in — show month abbreviation
+              return MONTHS_SHORT[month - 1];
+            }
+          },
           grid: { display: false },
           border: { display: false }
         },
         y: {
           ticks: {
-            color: isDark ? '#777' : '#bbb',
+            color: isDark ? '#999' : '#aaa',
             font: { size: 10 },
             callback: v => '$' + v.toLocaleString('en-AU', { maximumFractionDigits: 0 })
           },
-          grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' },
+          // Clearly visible horizontal grid lines in both modes
+          grid: { color: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)' },
           border: { display: false }
         }
       }
