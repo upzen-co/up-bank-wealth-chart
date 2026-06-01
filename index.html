@@ -191,6 +191,12 @@
   .progress-wrap {
     width: 200px; margin: 20px auto 0;
   }
+  .dash-progress {
+    margin: 8px 0 12px;
+    width: 100%;
+  }
+  .dash-progress .progress-track { width: 100%; }
+  .dash-progress .progress-label { text-align: left; }
   .progress-track {
     width: 100%; height: 3px;
     background: rgba(255,107,53,0.15);
@@ -396,17 +402,11 @@
     <p class="disclaimer">Unofficial tool — not affiliated with or endorsed by Up Banking.<br>Use is subject to the <a href="https://api.up.com.au" target="_blank">Up API terms</a>.</p>
   </div>
 
-  <!-- Loading -->
+  <!-- Loading (accounts fetch only — transactions show on dashboard directly) -->
   <div id="loading" class="hidden">
     <div class="loading-wrap">
       <div class="spinner"></div>
       <p class="loading-text" id="loading-msg">Connecting…</p>
-      <div class="progress-wrap" id="progress-wrap" style="visibility:hidden">
-        <div class="progress-track">
-          <div class="progress-bar indeterminate" id="progress-bar"></div>
-        </div>
-        <p class="progress-label" id="progress-label"></p>
-      </div>
     </div>
   </div>
 
@@ -442,6 +442,14 @@
             <p class="stat-value" id="stat-accounts"></p>
           </div>
         </div>
+        <!-- Inline progress — shown while transactions are loading on the dashboard -->
+        <div id="progress-wrap" class="dash-progress hidden">
+          <div class="progress-track">
+            <div class="progress-bar indeterminate" id="progress-bar"></div>
+          </div>
+          <p class="progress-label" id="progress-label"></p>
+        </div>
+
         <div class="chart-card">
           <div class="chart-wrap">
             <canvas id="wealth-chart" role="img" aria-label="Line chart of Up Bank balance over time">Balance history</canvas>
@@ -461,7 +469,7 @@
 </div>
 
 <footer class="app-footer">
-  <span>v1.0.4</span>
+  <span>v1.0.5</span>
   <span class="footer-sep">·</span>
   <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
   <span class="footer-sep">·</span>
@@ -472,7 +480,7 @@
 const BASE        = 'https://api.up.com.au/api/v1';
 const TOKEN_KEY   = 'upwealth_token';
 const LS_LEGACY   = 'upwealth_v3';    // old localStorage key — migrated on first load
-const APP_VERSION = '1.0.4';          // bump this with every GitHub Pages publish
+const APP_VERSION = '1.0.5';          // bump this with every GitHub Pages publish
 const DB_NAME     = 'upwealth_db';
 const DB_STORE    = 'cache';
 const DB_KEY      = 'main';
@@ -551,7 +559,7 @@ function _renderProgress() {
 
 function setProgress(fetched, estimated, elapsedMs) {
   const wrap = document.getElementById('progress-wrap');
-  if (wrap) wrap.style.visibility = 'visible';
+  if (wrap) wrap.classList.remove('hidden');
   _prog.fetched    = fetched;
   _prog.estimated  = estimated || 0;
   if (!_prog.startTime && elapsedMs != null)
@@ -560,24 +568,26 @@ function setProgress(fetched, estimated, elapsedMs) {
 }
 
 function resetProgress() {
-  if (_prog.tickerId) { clearInterval(_prog.tickerId); }
+  if (_prog.tickerId) clearInterval(_prog.tickerId);
   _prog = { fetched: 0, estimated: 0, startTime: Date.now(), tickerId: null };
-  // Start 1-second ticker so ETA counts down smoothly between page arrivals
   _prog.tickerId = setInterval(_renderProgress, 1000);
-  const wrap = document.getElementById('progress-wrap');
-  const bar  = document.getElementById('progress-bar');
-  if (wrap) wrap.style.visibility = 'hidden';
-  if (bar)  { bar.classList.add('indeterminate'); bar.style.width = '0%'; }
+  const wrap  = document.getElementById('progress-wrap');
+  const bar   = document.getElementById('progress-bar');
   const label = document.getElementById('progress-label');
+  if (wrap)  wrap.classList.add('hidden');
+  if (bar)   { bar.classList.add('indeterminate'); bar.style.width = '0%'; }
   if (label) label.textContent = '';
 }
 
 function completeProgress() {
   if (_prog.tickerId) { clearInterval(_prog.tickerId); _prog.tickerId = null; }
+  const wrap  = document.getElementById('progress-wrap');
   const bar   = document.getElementById('progress-bar');
   const label = document.getElementById('progress-label');
   if (bar)   { bar.classList.remove('indeterminate'); bar.style.width = '100%'; }
   if (label) label.textContent = '';
+  // Brief flash of 100% then hide
+  setTimeout(() => { if (wrap) wrap.classList.add('hidden'); }, 600);
 }
 
 function fmtAUD(cents) {
@@ -889,28 +899,31 @@ function accountStartMs(accounts) {
 
 async function fetchAndRender() {
   try {
-    resetProgress();
     setMsg('Fetching accounts…');
     const accounts = await fetchAll('/accounts');
-    // Persist accounts immediately — if we crash during tx fetch, recovery can resume
     await savePartial(accounts, []);
+
+    // Show dashboard immediately with live balances — chart fills as transactions arrive
+    renderDashboard(accounts, [], null);
+    show('dashboard');
+    hasDashboard = true;
+    resetProgress();
+
     const startMs = accountStartMs(accounts);
-    setMsg('Loading transactions…');
     const txs = await fetchAll(
       '/transactions',
       (n, est, elapsed) => setProgress(n, est, elapsed),
       startMs,
       async (_page, accumulated) => {
-        // Flush every page to IndexedDB — crash-safe incremental writes
         await savePartial(accounts, accumulated);
+        // Live-render chart as each page arrives
+        renderDashboard(accounts, buildSeries(accounts, accumulated), null);
       }
     );
     completeProgress();
     const series = buildSeries(accounts, txs);
     await saveCache(accounts, txs);
     renderDashboard(accounts, series, null);
-    show('dashboard');
-    hasDashboard = true;
   } catch (e) {
     const isCors = e.message === 'Failed to fetch'
       || e.message.includes('NetworkError')
@@ -926,6 +939,8 @@ async function fetchAndRender() {
 async function connect() {
   token = document.getElementById('token-input').value.trim();
   if (!token) return;
+  // Show loading screen only briefly while accounts fetch (fast)
+  // Transactions load directly onto the dashboard
   show('loading');
   setMsg('Connecting to Up…');
   await fetchAndRender();
@@ -998,16 +1013,26 @@ async function reset() {
 
 function renderDashboard(accounts, series, cacheTs) {
   const personalAccounts = accounts.filter(a => a.attributes.ownershipType === 'INDIVIDUAL');
-  const current = series[series.length - 1].balance;
-  const earliest = series[0].balance;
-  const change = current - earliest;
+  // Balance from live account data (accurate even before transactions load)
+  const liveBalance = personalAccounts.reduce((s, a) => s + a.attributes.balance.valueInBaseUnits, 0);
+  const current  = series.length ? series[series.length - 1].balance : liveBalance;
+  const earliest = series.length ? series[0].balance : liveBalance;
+  const change   = current - earliest;
+  const hasHistory = series.length > 1;
 
   document.getElementById('stat-current').textContent = fmtAUD(current);
   const chEl = document.getElementById('stat-change');
-  chEl.textContent = (change >= 0 ? '+' : '') + fmtAUD(change);
-  chEl.style.color = change >= 0 ? '#27ae60' : '#c0392b';
+  if (hasHistory) {
+    chEl.textContent = (change >= 0 ? '+' : '') + fmtAUD(change);
+    chEl.style.color = change >= 0 ? '#27ae60' : '#c0392b';
+  } else {
+    chEl.textContent = '—';
+    chEl.style.color = '';
+  }
   document.getElementById('stat-accounts').textContent = personalAccounts.length;
-  document.getElementById('date-range').textContent = `${series[0].date}  →  ${series[series.length - 1].date}`;
+  document.getElementById('date-range').textContent = hasHistory
+    ? `${series[0].date}  →  ${series[series.length - 1].date}`
+    : 'Loading history…';
 
   const badge = document.getElementById('cache-badge');
   if (cacheTs) {
@@ -1030,12 +1055,19 @@ function renderDashboard(accounts, series, cacheTs) {
     </div>
   `).join('');
 
-  // Chart
-  if (chartInst) { chartInst.destroy(); chartInst = null; }
-
   const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
   const labels = series.map(p => p.date);
   const values = series.map(p => +(p.balance / 100).toFixed(2));
+
+  // Update chart in place if it exists — avoids recreating canvas, plugins, touch handlers
+  if (chartInst) {
+    chartInst.data.labels = labels;
+    chartInst.data.datasets[0].data = values;
+    chartInst.update('none');
+    return;
+  }
+
+  // First render — create chart
   const ctx = document.getElementById('wealth-chart').getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, 300);
   grad.addColorStop(0, 'rgba(255,107,53,0.2)');
@@ -1189,33 +1221,34 @@ document.getElementById('token-input').addEventListener('keydown', e => {
 // Fetch everything older than our oldest saved tx, merge, then mark complete.
 async function resumeLoad(partial) {
   try {
-    const accounts   = partial.accounts;
+    const accounts    = partial.accounts;
     const existingTxs = partial.txs || [];
-    const startMs    = accountStartMs(accounts);
+    const startMs     = accountStartMs(accounts);
 
-    // Find the oldest createdAt we already have — fetch everything before it
+    // Show dashboard immediately with already-saved data
+    renderDashboard(accounts, buildSeries(accounts, existingTxs), null);
+    show('dashboard');
+    hasDashboard = true;
+
     const oldestCreatedAt = existingTxs
       .map(t => t.createdAt).filter(Boolean).sort()[0];
 
     const alreadyCount = existingTxs.length;
     resetProgress();
-    // Seed progress display with what we already have on disk
     _prog.fetched   = alreadyCount;
     _prog.estimated = 0;
-
-    setMsg(`Resuming — ${alreadyCount.toLocaleString('en-AU')} transactions already saved`);
 
     let olderTxs = [];
     if (oldestCreatedAt) {
       olderTxs = await fetchOlderThan(
         oldestCreatedAt,
-        (n, est, elapsed) => {
-          // Show progress as total (existing + newly fetched)
-          setProgress(alreadyCount + n, est, elapsed);
-        },
+        (n, est, elapsed) => setProgress(alreadyCount + n, est, elapsed),
         startMs,
         async (_page, accumulated) => {
-          await savePartial(accounts, [...existingTxs, ...accumulated.map(slimTx)]);
+          const merged = mergeTxs(existingTxs, accumulated.map(slimTx));
+          await savePartial(accounts, merged);
+          // Extend chart leftward as older transactions arrive
+          renderDashboard(accounts, buildSeries(accounts, merged), null);
         }
       );
     }
@@ -1225,8 +1258,6 @@ async function resumeLoad(partial) {
     const series  = buildSeries(accounts, allTxs);
     await saveCache(accounts, allTxs);
     renderDashboard(accounts, series, null);
-    show('dashboard');
-    hasDashboard = true;
   } catch (e) {
     console.error('resumeLoad failed', e);
     show('setup');
