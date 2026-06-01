@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`renderDashboard` updates chart in-place** — if a chart instance already exists, `renderDashboard` now updates `labels` and `data` directly and calls `chartInst.update('none')` rather than destroying and recreating the `Chart` instance. This eliminates flicker and avoids re-initialising the gradient, quarter-grid plugin, and pinch-to-zoom touch handlers on every page.
 - **Empty series handled gracefully** — `renderDashboard` now accepts an empty series (`[]`) without crashing. Balance is read from live account data, the change stat shows `—`, and the date range shows `Loading history…` until transactions arrive.
 - **Loading screen simplified** — the loading screen is now shown only briefly while the accounts request resolves (usually < 1s). It no longer hosts the progress bar, which has moved to the dashboard.
+- **Dark mode grid line contrast improved** — new year vertical lines bumped from `rgba(255,255,255,0.25)` to `0.45`; quarter dividers from `0.08` to `0.20`; y-axis horizontal grid lines from `0.06` to `0.15`. Tick label colour changed from `#777` to `#999` in dark mode.
+- **Smart x-axis tick labels** — replaced `maxTicksLimit: 6` with a custom `afterBuildTicks` hook. Year boundaries (Jan 1) are always shown, labelled as the year number ("2024", "2025"). Quarter boundaries (Apr/Jul/Oct 1) are added only when available pixel width per tick exceeds 58 px, labelled as "Q2"/"Q3"/"Q4". When zoomed in to a range with no year or quarter boundaries, Chart.js default tick placement is used and labels fall back to abbreviated month names ("Jan", "Feb", etc.).
 
 ---
 
