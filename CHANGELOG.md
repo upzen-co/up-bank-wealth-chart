@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.6] - 2026-06-01
+
+### Fixed
+- **Dark mode chart background (CSS ordering bug)** — the `.chart-card` dark mode override (`background: #1c1c1a`) was declared before the base `.chart-card` rule (`background: #fff`) in the stylesheet. Because both selectors have equal specificity, the later rule won, leaving the chart on a white background in dark mode. The dark mode override has been moved to a media block that appears after the base rule, so cascade order is now correct. Grid lines and the fill gradient are now correctly visible against the dark background.
+- **Crash-resume estimation accuracy** — when recovering from a mid-load crash, the estimated total and ETA were computed only from the newly-fetched older transactions, ignoring the transactions already saved to disk. The estimate is now pre-seeded from the full set of existing transactions before any new fetching begins, then updated from all transactions (existing + newly fetched) after each page. The `null` sentinel for `estimated` in `setProgress` preserves the current estimate when the caller does not have a better one.
+- **Duplicate month labels on x-axis** — when the chart covered a short time range (e.g. during initial incremental loading), Chart.js could place multiple ticks within the same calendar month, producing labels like "Jan, Jan, Feb, Feb". The `afterBuildTicks` hook now tracks the first index seen per `YYYY-MM` key and ensures at most one tick per month regardless of data density or zoom level.
+
+### Added
+- **PWA home screen icon** — added `icon.png` (180 × 180, orange background with white waveform) referenced via `<link rel="apple-touch-icon">` and `<link rel="icon">`. Added `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-mobile-web-app-title`, and `theme-color` meta tags for a native-feeling iOS PWA experience.
+- **`computeEstimate(txs, startMs)` helper** — extracted from inline estimation logic in `fetchAll` and `fetchOlderThan` into a shared function. Computes observed transaction density over the date range present in `txs`, then extrapolates to the full account lifetime using `startMs` as the fixed denominator.
+
+### Changed
+- **Faster PWA startup** — IndexedDB is now opened eagerly at module load time via a module-level `_dbPromise`, rather than lazily on the first `_idbGet` call inside `init()`. This removes one round-trip from the critical path between page parse and first meaningful render.
+- **Pure line graph** — removed all data point dots (`pointRadius: 0` unconditionally). A subtle hit radius (`pointHitRadius: 10`) is preserved so tooltips still trigger on hover/touch.
+- **Smart x-axis tick fallback** — when the visible range contains no year boundaries (short history or tight zoom), the axis now falls back to month-level ticks (max one per month, thinned by a step factor if crowded) rather than leaving Chart.js to place arbitrary ticks that may duplicate months.
+
+---
+
 ## [1.0.5] - 2026-06-01
 
 ### Added
