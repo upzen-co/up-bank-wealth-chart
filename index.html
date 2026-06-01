@@ -7,273 +7,267 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="icon" type="image/png" href="icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="upzen wealth">
-<meta name="theme-color" content="#6BBF1A">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D1410">
+<meta name="theme-color" content="#1a1a1a">
 <title>upzen wealth</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,300;1,14..32,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  /* ─── Variables ──────────────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Variables (dark-first, matches upzen.co) ── */
   :root {
-    --bg:            #F0EDE8;
-    --surface:       #FFFFFF;
-    --surface-alt:   #F7F4F0;
-    --text:          #1A1714;
-    --text-muted:    #7A7068;
-    --text-subtle:   #B5ADA5;
-    --accent:        #6BBF1A;
-    --accent-rgb:    107,191,26;
-    --accent-dim:    rgba(107,191,26,0.1);
-    --border:        rgba(0,0,0,0.07);
-    --border-strong: rgba(0,0,0,0.13);
-    --positive:      #5AA012;
-    --negative:      #B83030;
-    --r-sm:          10px;
-    --r-md:          14px;
-    --r-lg:          18px;
+    --green:        #4cae50;
+    --green-dim:    rgba(76,174,80,0.72);
+    --green-glow:   rgba(76,174,80,0.15);
+    --green-faint:  rgba(76,174,80,0.06);
+    --bg:           #1a1a1a;
+    --surface:      #212121;
+    --card:         #252525;
+    --border:       rgba(255,255,255,0.07);
+    --text:         #ffffff;
+    --text-dim:     rgba(255,255,255,0.55);
+    --text-faint:   rgba(255,255,255,0.08);
+    --nav-bg:       rgba(26,26,26,0.85);
+    --positive:     #4cae50;
+    --negative:     #e05c5c;
   }
-  @media (prefers-color-scheme: dark) {
+
+  @media (prefers-color-scheme: light) {
     :root {
-      --bg:            #0D1410;
-      --surface:       #141E17;
-      --surface-alt:   #1B281E;
-      --text:          #E4EDE6;
-      --text-muted:    #6B7C6D;
-      --text-subtle:   #374A39;
-      --accent:        #A0DC2C;
-      --accent-rgb:    160,220,44;
-      --accent-dim:    rgba(160,220,44,0.12);
-      --border:        rgba(255,255,255,0.07);
-      --border-strong: rgba(255,255,255,0.13);
-      --positive:      #A0DC2C;
-      --negative:      #E07070;
+      --bg:         #f7f7f5;
+      --surface:    #ffffff;
+      --card:       #ffffff;
+      --border:     rgba(0,0,0,0.08);
+      --text:       #1a1a1a;
+      --text-dim:   rgba(0,0,0,0.50);
+      --text-faint: rgba(0,0,0,0.05);
+      --nav-bg:     rgba(247,247,245,0.88);
     }
   }
 
-  /* ─── Reset & base ───────────────────────────────────────────────────────────── */
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
 
   body {
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: 'Inter', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
+    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ─── Header ─────────────────────────────────────────────────────────────────── */
+  /* ── Header ── */
   .header {
-    background: var(--surface);
-    border-bottom: 0.5px solid var(--border);
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    position: sticky;
-    top: 0; z-index: 10;
+    position: sticky; top: 0; z-index: 100;
+    background: var(--nav-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    height: 64px;
+    display: flex; align-items: center;
+    padding: 0 20px;
+    gap: 12px;
   }
-  @media (min-width: 768px) {
-    .header { padding: 12px 28px; }
-  }
+  @media (min-width: 768px) { .header { padding: 0 28px; } }
 
-  .logo {
-    width: 30px; height: 30px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .logo svg {
-    width: 15px; height: 15px;
-    stroke: white; fill: none;
-    stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+  .header-logo {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; flex-shrink: 0;
   }
 
   .header-wordmark {
-    display: flex; align-items: baseline; gap: 4px;
-    font-size: 16px; letter-spacing: -0.03em;
-    font-family: 'Inter', sans-serif;
-    user-select: none;
-  }
-  .wordmark-brand {
-    font-weight: 700;
+    font-size: 15px; font-weight: 600;
+    letter-spacing: -0.02em;
     color: var(--text);
-    letter-spacing: -0.04em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .wordmark-sep {
+    color: var(--border);
+    font-weight: 300;
+    font-size: 18px;
+    line-height: 1;
   }
   .wordmark-product {
     font-weight: 400;
-    color: var(--text-muted);
-    font-size: 15px;
-    letter-spacing: -0.02em;
+    color: var(--text-dim);
+    font-size: 14px;
   }
 
   .header-actions {
     margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    display: flex; align-items: center; gap: 6px;
   }
 
   .action-btn {
-    display: flex; align-items: center; gap: 5px;
-    padding: 6px 11px;
-    border-radius: var(--r-sm);
-    border: 0.5px solid var(--border-strong);
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
     background: none;
     font-family: 'Inter', sans-serif;
-    font-size: 12px; font-weight: 500;
-    color: var(--text-muted);
+    font-size: 13px; font-weight: 500;
+    color: var(--text-dim);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s, color 0.15s;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    letter-spacing: -0.01em;
   }
   .action-btn svg {
-    width: 12px; height: 12px;
+    width: 13px; height: 13px;
     stroke: currentColor; fill: none;
     stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
     flex-shrink: 0;
   }
-  .action-btn:hover { background: var(--surface-alt); color: var(--text); }
-  .action-btn.spinning svg { animation: spin 0.8s linear infinite; }
-
-  .action-btn-danger {
-    border-color: rgba(184,48,48,0.2);
-    color: var(--negative);
+  .action-btn:hover {
+    color: var(--text);
+    background: var(--text-faint);
+    border-color: rgba(255,255,255,0.14);
   }
-  .action-btn-danger:hover { background: rgba(184,48,48,0.07); color: var(--negative); }
-  @media (prefers-color-scheme: dark) {
-    .action-btn-danger { border-color: rgba(224,112,112,0.2); }
+  @media (prefers-color-scheme: light) {
+    .action-btn:hover { border-color: rgba(0,0,0,0.15); }
   }
 
-  /* ─── Layout ─────────────────────────────────────────────────────────────────── */
+  .action-btn-danger { color: var(--negative); border-color: rgba(224,92,92,0.2); }
+  .action-btn-danger:hover { background: rgba(224,92,92,0.07); color: var(--negative); border-color: rgba(224,92,92,0.3); }
+
+  /* ── Layout ── */
   .content {
-    padding: 20px 16px;
-    max-width: 500px;
+    padding: 24px 20px;
+    max-width: 520px;
     margin: 0 auto;
   }
   @media (min-width: 768px) {
-    .content { max-width: 1300px; padding: 28px 28px; }
+    .content { max-width: 1200px; padding: 28px 28px; }
     #setup, #loading, #error-screen { max-width: 440px; margin: 0 auto; }
   }
 
-  /* ─── Setup screen ───────────────────────────────────────────────────────────── */
+  /* ── Setup ── */
   .setup-eyebrow {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--accent);
-    margin-bottom: 10px; display: block;
+    font-size: 0.72rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--green);
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 20px;
   }
+  .eyebrow-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
   .setup-headline {
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    font-size: 24px; line-height: 1.2;
+    font-size: clamp(1.9rem, 5vw, 2.6rem);
+    font-weight: 700; line-height: 1.08;
+    letter-spacing: -0.03em;
     color: var(--text);
-    margin-bottom: 6px;
-    letter-spacing: -0.04em;
+    margin-bottom: 14px;
   }
   .setup-sub {
-    font-size: 14px; line-height: 1.6;
-    color: var(--text-muted);
-    margin-bottom: 24px;
+    font-size: 0.95rem; font-weight: 400;
+    color: var(--text-dim); line-height: 1.65;
+    margin-bottom: 28px;
   }
 
   .setup-card {
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--r-lg);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
     padding: 20px;
     margin-bottom: 12px;
   }
 
   .setup-label {
-    font-size: 11px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--text-subtle);
-    display: block; margin-bottom: 9px;
+    font-size: 0.72rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dim);
+    display: block; margin-bottom: 10px;
   }
 
   input {
-    width: 100%; padding: 12px 14px;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--r-sm);
-    font-size: 14px; font-family: 'Inter', sans-serif;
-    background: var(--surface-alt); color: var(--text);
+    width: 100%; padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace;
+    background: var(--surface); color: var(--text);
     outline: none; -webkit-appearance: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
+  input::placeholder { color: var(--text-dim); opacity: 0.5; }
   input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-dim);
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--green-faint);
   }
-  input::placeholder { color: var(--text-subtle); }
 
-  .hint { font-size: 12px; color: var(--text-muted); margin-top: 10px; line-height: 1.55; }
-  .hint a { color: var(--accent); text-decoration: none; }
-  .hint strong { font-weight: 500; }
+  .hint { font-size: 12px; color: var(--text-dim); margin-top: 10px; line-height: 1.55; }
+  .hint a { color: var(--green); text-decoration: none; }
 
   .privacy-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; font-weight: 500; color: var(--positive);
-    background: var(--accent-dim);
-    border: 0.5px solid rgba(var(--accent-rgb), 0.25);
-    border-radius: 6px; padding: 4px 9px; margin-top: 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 500;
+    color: var(--green);
+    background: var(--green-faint);
+    border: 1px solid rgba(76,174,80,0.2);
+    border-radius: 6px; padding: 4px 10px; margin-top: 12px;
   }
   .privacy-badge svg { width: 11px; height: 11px; flex-shrink: 0; }
 
   .connect-btn {
-    width: 100%; padding: 14px;
-    background: var(--accent); color: white;
-    border: none; border-radius: var(--r-md);
+    width: 100%; padding: 13px;
+    background: var(--green); color: #fff;
+    border: none; border-radius: 10px;
     font-family: 'Inter', sans-serif;
-    font-size: 15px; font-weight: 600;
+    font-size: 14px; font-weight: 600;
     letter-spacing: -0.01em;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
     transition: opacity 0.15s, transform 0.1s;
   }
-  .connect-btn:hover { opacity: 0.92; }
+  .connect-btn:hover { opacity: 0.88; }
   .connect-btn:active { transform: scale(0.99); }
 
   .disclaimer {
-    font-size: 11px; color: var(--text-subtle);
+    font-size: 11px; color: var(--text-dim); opacity: 0.6;
     text-align: center; margin-top: 14px; line-height: 1.6;
   }
-  .disclaimer a { color: var(--text-subtle); text-decoration: underline; text-underline-offset: 2px; }
+  .disclaimer a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
-  /* ─── Loading ────────────────────────────────────────────────────────────────── */
-  .loading-wrap { text-align: center; padding: 60px 20px; }
-
+  /* ── Loading ── */
+  .loading-wrap { text-align: center; padding: 64px 20px; }
   .spinner {
-    width: 34px; height: 34px;
-    border: 2.5px solid var(--accent-dim);
-    border-top-color: var(--accent);
+    width: 32px; height: 32px;
+    border: 2px solid var(--green-faint);
+    border-top-color: var(--green);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.75s linear infinite;
     margin: 0 auto 16px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: var(--text-dim); }
 
-  .loading-text { font-size: 14px; color: var(--text-muted); }
-
-  /* ─── Progress bar ───────────────────────────────────────────────────────────── */
+  /* ── Progress ── */
   .progress-wrap { width: 200px; margin: 20px auto 0; }
-  .dash-progress { margin: 8px 0 14px; width: 100%; }
+  .dash-progress { margin: 6px 0 14px; width: 100%; }
   .dash-progress .progress-track { width: 100%; }
   .dash-progress .progress-label { text-align: left; }
-
   .progress-track {
     width: 100%; height: 2px;
-    background: var(--accent-dim);
-    border-radius: 1px; overflow: hidden; position: relative;
+    background: var(--green-faint);
+    border-radius: 1px; overflow: hidden;
   }
   .progress-bar {
     height: 100%; border-radius: 1px;
-    background: var(--accent);
+    background: var(--green);
     width: 0%; transition: width 0.35s ease;
   }
   .progress-bar.indeterminate {
@@ -285,70 +279,59 @@
     100% { transform: translateX(430%); }
   }
   .progress-label {
-    font-size: 11px; color: var(--text-subtle);
-    margin-top: 8px; min-height: 16px;
-    text-align: center;
+    font-size: 11px; color: var(--text-dim); opacity: 0.7;
+    margin-top: 8px; min-height: 16px; text-align: center;
   }
 
-  /* ─── Error ──────────────────────────────────────────────────────────────────── */
+  /* ── Error ── */
   .error-box {
-    background: rgba(184,48,48,0.06);
-    border: 0.5px solid rgba(184,48,48,0.18);
-    border-radius: var(--r-md); padding: 16px; margin-bottom: 14px;
+    background: rgba(224,92,92,0.08);
+    border: 1px solid rgba(224,92,92,0.2);
+    border-radius: 14px; padding: 16px; margin-bottom: 14px;
   }
   .error-title { font-size: 14px; font-weight: 600; color: var(--negative); margin-bottom: 5px; }
-  .error-msg { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .error-msg { font-size: 13px; color: var(--text-dim); line-height: 1.55; }
   .back-btn {
     background: none; border: none;
     font-family: 'Inter', sans-serif;
-    font-size: 14px; color: var(--text-muted);
+    font-size: 13px; color: var(--text-dim);
     padding: 8px 0; cursor: pointer;
   }
 
-  /* ─── Dashboard layout ───────────────────────────────────────────────────────── */
+  /* ── Dashboard layout ── */
   .dash-main {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
+    display: grid; grid-template-columns: 1fr; gap: 16px;
   }
   @media (min-width: 768px) {
     .dash-main { grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
-    .dash-right { position: sticky; top: 72px; }
+    .dash-right { position: sticky; top: 80px; }
   }
-  @media (min-width: 1024px) {
-    .dash-main { grid-template-columns: 1fr 240px; }
-  }
+  @media (min-width: 1024px) { .dash-main { grid-template-columns: 1fr 240px; } }
 
-  /* ─── Date / cache badge ─────────────────────────────────────────────────────── */
+  /* ── Dash header ── */
   .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .date-range { font-size: 12px; color: var(--text-subtle); font-weight: 400; }
+  .date-range { font-size: 12px; color: var(--text-dim); }
   .cache-badge {
-    font-size: 11px; color: var(--text-subtle);
-    background: var(--surface-alt);
+    font-size: 11px; color: var(--text-dim); opacity: 0.7;
+    background: var(--card); border: 1px solid var(--border);
     border-radius: 6px; padding: 3px 8px;
   }
 
-  /* ─── Stat cards ─────────────────────────────────────────────────────────────── */
+  /* ── Stat cards ── */
   .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: grid; grid-template-columns: repeat(3,1fr);
     gap: 8px; margin-bottom: 14px;
   }
-
   .stat-card {
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--r-md);
-    padding: 14px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 12px;
   }
-
   .stat-label {
-    font-size: 10px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--text-subtle);
-    margin-bottom: 6px;
+    font-size: 0.68rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 7px;
   }
-
   .stat-value {
     font-size: 17px; font-weight: 600;
     letter-spacing: -0.03em; line-height: 1.1;
@@ -356,177 +339,149 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* ─── Chart ──────────────────────────────────────────────────────────────────── */
+  /* ── Chart ── */
   .chart-card {
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: 16px 14px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px; padding: 16px 14px 12px;
   }
-
   .chart-wrap { position: relative; width: 100%; height: 210px; }
   .chart-wrap canvas { touch-action: none; }
-
   @media (min-width: 768px)  { .chart-wrap { height: 300px; } }
   @media (min-width: 1024px) { .chart-wrap { height: 320px; } }
   @media (min-width: 1400px) { .chart-wrap { height: 360px; } }
 
-  /* ─── Accounts ───────────────────────────────────────────────────────────────── */
+  /* ── Accounts ── */
   .section-label {
-    font-size: 10px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--text-subtle);
-    margin-bottom: 10px; display: block;
+    font-size: 0.68rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 10px; display: block;
   }
-
   .accounts-divider {
-    display: none;
-    border: none; border-top: 0.5px solid var(--border);
-    margin-bottom: 12px;
+    display: none; border: none;
+    border-top: 1px solid var(--border); margin-bottom: 12px;
   }
   @media (min-width: 768px) {
     .accounts-divider { display: block; }
     .section-label { margin-top: 2px; }
   }
-
   .accounts-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
   }
   @media (min-width: 768px) {
     .dash-right .accounts-grid { grid-template-columns: 1fr; }
   }
-
   .account-card {
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--r-md);
-    padding: 13px 14px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 13px 14px;
+    transition: border-color 0.2s;
   }
-
+  .account-card:hover { border-color: rgba(76,174,80,0.3); }
   .account-name {
-    font-size: 11px; color: var(--text-muted);
+    font-size: 11px; color: var(--text-dim);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-bottom: 5px; font-weight: 400;
+    margin-bottom: 5px;
   }
-
   .account-balance {
     font-size: 16px; font-weight: 600;
-    letter-spacing: -0.02em; color: var(--text);
+    letter-spacing: -0.03em; color: var(--text);
     font-variant-numeric: tabular-nums;
   }
 
-  /* ─── Modal ──────────────────────────────────────────────────────────────────── */
+  /* ── Modal ── */
   .modal-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.45);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex; align-items: flex-end;
-    z-index: 100;
-    padding: 16px;
+    z-index: 200; padding: 16px;
   }
-  @media (min-width: 480px) {
-    .modal-overlay { align-items: center; }
-  }
-
+  @media (min-width: 480px) { .modal-overlay { align-items: center; } }
   .modal-box {
     background: var(--surface);
-    border: 0.5px solid var(--border-strong);
-    border-radius: var(--r-lg);
-    padding: 28px 24px 24px;
-    width: 100%; max-width: 360px;
-    margin: 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 18px; padding: 28px 24px 24px;
+    width: 100%; max-width: 360px; margin: 0 auto;
     text-align: center;
-    animation: modal-in 0.2s cubic-bezier(0.34,1.56,0.64,1);
+    animation: modal-in 0.22s cubic-bezier(0.34,1.56,0.64,1);
   }
   @keyframes modal-in {
-    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    from { opacity: 0; transform: translateY(16px) scale(0.96); }
     to   { opacity: 1; transform: none; }
   }
-
   .modal-icon-wrap {
     width: 48px; height: 48px;
-    background: var(--surface-alt);
+    background: var(--card); border: 1px solid var(--border);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     margin: 0 auto 16px;
   }
   .modal-icon-wrap svg {
-    width: 22px; height: 22px;
-    stroke: var(--text-muted); fill: none;
+    width: 20px; height: 20px;
+    stroke: var(--text-dim); fill: none;
     stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
   }
-
   .modal-title {
-    font-size: 17px; font-weight: 600;
-    letter-spacing: -0.02em; color: var(--text);
-    margin-bottom: 8px;
+    font-size: 16px; font-weight: 600;
+    letter-spacing: -0.02em; color: var(--text); margin-bottom: 8px;
   }
   .modal-desc {
-    font-size: 14px; line-height: 1.6;
-    color: var(--text-muted);
-    margin-bottom: 24px;
+    font-size: 13px; line-height: 1.6;
+    color: var(--text-dim); margin-bottom: 24px;
   }
-  .modal-btns {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-  }
+  .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .modal-cancel {
-    padding: 12px;
-    background: var(--surface-alt);
-    border: 0.5px solid var(--border);
-    border-radius: var(--r-sm);
-    font-family: 'Inter', sans-serif;
-    font-size: 14px; font-weight: 500;
-    color: var(--text-muted);
-    cursor: pointer;
+    padding: 11px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+    color: var(--text-dim); cursor: pointer;
+    transition: background 0.15s;
   }
-  .modal-cancel:hover { background: var(--border); }
-
+  .modal-cancel:hover { background: var(--text-faint); }
   .modal-confirm {
-    padding: 12px;
-    border: none; border-radius: var(--r-sm);
-    font-family: 'Inter', sans-serif;
-    font-size: 14px; font-weight: 600;
-    cursor: pointer;
+    padding: 11px; border: none; border-radius: 8px;
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
   }
-  .modal-confirm.confirm-primary {
-    background: var(--accent); color: white;
-  }
-  .modal-confirm.confirm-primary:hover { opacity: 0.9; }
-  .modal-confirm.confirm-danger {
-    background: var(--negative); color: white;
-  }
-  .modal-confirm.confirm-danger:hover { opacity: 0.9; }
+  .modal-confirm:hover { opacity: 0.88; }
+  .confirm-primary { background: var(--green); color: #fff; }
+  .confirm-danger  { background: var(--negative); color: #fff; }
 
-  /* ─── Footer ─────────────────────────────────────────────────────────────────── */
+  /* ── Footer ── */
   .app-footer {
-    text-align: center; padding: 28px 16px 24px;
-    font-size: 11px; color: var(--text-subtle);
+    text-align: center; padding: 28px 20px 24px;
+    font-size: 12px; color: var(--text-dim); opacity: 0.55;
     display: flex; align-items: center; justify-content: center;
     gap: 8px; flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
   }
-  .app-footer a { color: var(--text-subtle); text-decoration: underline; text-underline-offset: 2px; }
-  .app-footer a:hover { color: var(--text-muted); }
-  .footer-sep { color: var(--border-strong); }
+  .app-footer a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  .app-footer a:hover { opacity: 1; color: var(--text); }
+  .footer-sep { opacity: 0.4; }
 
-  /* ─── Utility ────────────────────────────────────────────────────────────────── */
-  .muted   { color: var(--text-muted); }
-  .hidden  { display: none !important; }
+  /* ── Utility ── */
+  .muted  { color: var(--text-dim); }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <div class="logo">
-    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-  </div>
-  <div class="header-wordmark">
-    <span class="wordmark-brand">upzen</span>
-    <span class="wordmark-product">wealth</span>
-  </div>
+<header class="header">
+  <a href="https://upzen.co" class="header-logo" aria-label="upzen">
+    <svg viewBox="0 0 79.67 79.67" width="34" height="34" aria-hidden="true">
+      <path fill="#4cae50" d="m56.57,28.71h-22.16c-3.1,0-5.61-2.51-5.61-5.61s2.51-5.61,5.61-5.61h22.16c3.1,0,5.61,2.51,5.61,5.61s-2.51,5.61-5.61,5.61Z"/>
+      <path fill="#4cae50" d="m45.26,62.18h-22.16c-3.1,0-5.61-2.51-5.61-5.61s2.51-5.61,5.61-5.61h22.16c3.1,0,5.61,2.51,5.61,5.61s-2.51,5.61-5.61,5.61Z"/>
+      <path fill="#4cae50" d="m23.1,62.18c-1.44,0-2.87-.55-3.97-1.64-2.19-2.19-2.19-5.74,0-7.93L52.6,19.14c2.19-2.19,5.74-2.19,7.93,0,2.19,2.19,2.19,5.74,0,7.93L27.07,60.53c-1.1,1.1-2.53,1.64-3.97,1.64Z"/>
+      <path fill="#4cae50" d="m56.57,50.87c-3.1,0-5.61-2.51-5.61-5.61v-22.16c0-3.1,2.51-5.61,5.61-5.61s5.61,2.51,5.61,5.61v22.16c0,3.1-2.51,5.61-5.61,5.61Z"/>
+    </svg>
+    <div class="header-wordmark">
+      <span>upzen</span>
+      <span class="wordmark-sep">/</span>
+      <span class="wordmark-product">wealth</span>
+    </div>
+  </a>
   <div class="header-actions hidden" id="header-actions">
     <button class="action-btn" id="resync-btn" onclick="promptResync()">
       <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -537,16 +492,15 @@
       Disconnect
     </button>
   </div>
-</div>
+</header>
 
 <div class="content">
 
   <!-- Setup -->
   <div id="setup">
-    <span class="setup-eyebrow">upzen wealth</span>
+    <p class="setup-eyebrow"><span class="eyebrow-dot"></span>upzen wealth</p>
     <h1 class="setup-headline">Your balance,<br>over time.</h1>
-    <p class="setup-sub">Connect your Up account to see your total balance charted over your full history — reconstructed from your transactions, privately, on your device.</p>
-
+    <p class="setup-sub">Connect your Up account to see your total balance charted across your full history — reconstructed privately, on your device.</p>
     <div class="setup-card">
       <label class="setup-label" for="token-input">Personal Access Token</label>
       <input type="password" id="token-input" placeholder="up:yeah:xxxxxxxxxxxx" autocomplete="off" autocorrect="off" spellcheck="false" oninput="saveTokenImmediate(this.value)">
@@ -559,7 +513,7 @@
       </div>
     </div>
     <button class="connect-btn" onclick="connect()">Connect to Up →</button>
-    <p class="disclaimer">Unofficial tool — not affiliated with or endorsed by Up Banking.<br>Use is subject to the <a href="https://api.up.com.au" target="_blank">Up API terms</a>.</p>
+    <p class="disclaimer">Unofficial tool — not affiliated with or endorsed by Up Banking.<br>Subject to the <a href="https://api.up.com.au" target="_blank">Up API terms</a>.</p>
   </div>
 
   <!-- Loading -->
@@ -582,13 +536,11 @@
   <!-- Dashboard -->
   <div id="dashboard" class="hidden">
     <div class="dash-main">
-
       <div class="dash-left">
         <div class="dash-header">
           <p class="date-range" id="date-range"></p>
           <span class="cache-badge hidden" id="cache-badge"></span>
         </div>
-
         <div class="stats-grid">
           <div class="stat-card">
             <p class="stat-label">Balance</p>
@@ -603,28 +555,23 @@
             <p class="stat-value" id="stat-accounts"></p>
           </div>
         </div>
-
-        <!-- Progress bar (shown during transaction loading) -->
         <div id="progress-wrap" class="dash-progress hidden">
           <div class="progress-track">
             <div class="progress-bar indeterminate" id="progress-bar"></div>
           </div>
           <p class="progress-label" id="progress-label"></p>
         </div>
-
         <div class="chart-card">
           <div class="chart-wrap">
             <canvas id="wealth-chart" role="img" aria-label="Line chart of Up balance over time">Balance history</canvas>
           </div>
         </div>
       </div>
-
       <div class="dash-right">
         <hr class="accounts-divider">
         <span class="section-label">Accounts</span>
         <div class="accounts-grid" id="accounts-grid"></div>
       </div>
-
     </div>
   </div>
 
@@ -1330,7 +1277,7 @@ function renderDashboard(accounts, series, cacheTs) {
   // First render — create chart
   const ctx = document.getElementById('wealth-chart').getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, 300);
-  const accentRgb = isDark ? '160,220,44' : '107,191,26';
+  const accentRgb = isDark ? '76,174,80' : '76,174,80';
   grad.addColorStop(0, `rgba(${accentRgb},0.22)`);
   grad.addColorStop(1, `rgba(${accentRgb},0.0)`);
 
@@ -1379,7 +1326,7 @@ function renderDashboard(accounts, series, cacheTs) {
       labels,
       datasets: [{
         data: values,
-        borderColor: isDark ? '#A0DC2C' : '#6BBF1A',
+        borderColor: '#4cae50',
         borderWidth: 2,
         backgroundColor: grad,
         fill: true,
