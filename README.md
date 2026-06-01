@@ -6,7 +6,7 @@ A single-file web app that charts your [Up Bank](https://up.com.au) balance over
 
 ![Up Wealth screenshot placeholder](https://placehold.co/1200x600/f5f4f1/FF6B35?text=Up+Wealth)
 
------
+---
 
 ## ✨ Features
 
@@ -17,20 +17,20 @@ A single-file web app that charts your [Up Bank](https://up.com.au) balance over
 - **Dark mode** — follows your system preference automatically
 - **Mobile-friendly** — responsive layout that works on any screen size
 
------
+---
 
 ## 🔒 Privacy — Your Token Never Leaves Your Device
 
 This is the most important thing to understand about how Up Wealth works:
 
 - **Your API token is never transmitted anywhere except directly to `api.up.com.au`** — there is no intermediary server
-- **All data is stored in your browser’s `localStorage`** — it never touches any third-party server
-- **The app makes requests directly from your browser to the Up API** — you can verify this in your browser’s DevTools Network tab
-- **Disconnecting clears everything** — the “Disconnect” button wipes the token and all cached data from your device
+- **All data is stored in your browser's `localStorage`** — it never touches any third-party server
+- **The app makes requests directly from your browser to the Up API** — you can verify this in your browser's DevTools Network tab
+- **Disconnecting clears everything** — the "Disconnect" button wipes the token and all cached data from your device
 
-You can [read the source code](./up-wealth-interactive-chart.html) in its entirety — it’s a single HTML file with no minification or obfuscation.
+You can [read the source code](./up-wealth-interactive-chart.html) in its entirety — it's a single HTML file with no minification or obfuscation.
 
------
+---
 
 ## 🚀 Getting Started
 
@@ -46,31 +46,31 @@ Your token looks like: `up:yeah:xxxxxxxxxxxxxxxxxxxx`
 
 **Option A — Visit the web app (easiest)**
 
-Open **[upzen-co.github.io/up-wealth](https://upzen-co.github.io/up-wealth)** in your browser — no download or installation required.
+Open **[jamesbedwell.github.io/up-wealth](https://jamesbedwell.github.io/up-wealth)** in your browser — no download or installation required.
 
 **Option B — Download and run locally**
 
-Download [`up-wealth-interactive-chart.html`](./up-wealth-interactive-chart.html) and open it directly in your browser. Useful if you’d prefer to run it entirely from your own machine.
+Download [`up-wealth-interactive-chart.html`](./up-wealth-interactive-chart.html) and open it directly in your browser. Useful if you'd prefer to run it entirely from your own machine.
 
 ### 3. Connect
 
 Paste your token into the input field and tap **Connect to Up**. The app will fetch your accounts and transaction history (this may take a moment if you have a long history), then display your balance chart.
 
------
+---
 
 ## 📊 How the Chart Works
 
-Up’s API doesn’t directly expose historical balance snapshots, so Up Wealth reconstructs your balance history by:
+Up's API doesn't directly expose historical balance snapshots, so Up Wealth reconstructs your balance history by:
 
 1. Fetching your **current account balance** from the API
-1. Fetching your **full transaction history**
-1. **Walking backwards** through time — subtracting each day’s net transactions to derive the end-of-day balance for every previous date
+2. Fetching your **full transaction history**
+3. **Walking backwards** through time — subtracting each day's net transactions to derive the end-of-day balance for every previous date
 
 This means the rightmost point on the chart always matches your live Up balance exactly, with each prior point calculated from settled transactions.
 
 > Only **personal (individual) accounts** are included. Joint accounts are excluded.
 
------
+---
 
 ## ⚡ Caching & Refresh
 
@@ -80,23 +80,23 @@ After the first load, everything is cached in `localStorage`:
 - **Refresh** only fetches transactions newer than the most recent cached one — much faster than a full reload
 - **Disconnect** wipes all cached data including your token
 
------
+---
 
 ## 🛠 Technical Details
 
-|Detail              |Value                                               |
-|--------------------|----------------------------------------------------|
-|**Dependencies**    |[Chart.js 4.4.1](https://www.chartjs.org/) (via CDN)|
-|**Framework**       |None — vanilla HTML/CSS/JS                          |
-|**Storage**         |Browser `localStorage` only                         |
-|**API**             |[Up Banking API v1](https://developer.up.com.au)    |
-|**Permissions used**|`accounts:read`, `transactions:read`                |
-|**File size**       |~20 KB                                              |
+| Detail | Value |
+|---|---|
+| **Dependencies** | [Chart.js 4.4.1](https://www.chartjs.org/) (via CDN) |
+| **Framework** | None — vanilla HTML/CSS/JS |
+| **Storage** | Browser `localStorage` only |
+| **API** | [Up Banking API v1](https://developer.up.com.au) |
+| **Permissions used** | `accounts:read`, `transactions:read` |
+| **File size** | ~20 KB |
 
------
+---
 
 ## ⚠️ Disclaimer
 
 This is an **unofficial, community-made tool** and is not affiliated with, endorsed by, or supported by Up Banking or Bendigo and Adelaide Bank.
 
-Use of the Up API is subject to [Up’s API terms of service](https://api.up.com.au). Your Personal Access Token grants read access to your financial data — review Up’s documentation and revoke access at any time from within the Up app.
+Use of the Up API is subject to [Up's API terms of service](https://api.up.com.au). Your Personal Access Token grants read access to your financial data — review Up's documentation and revoke access at any time from within the Up app.
