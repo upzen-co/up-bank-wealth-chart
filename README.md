@@ -46,7 +46,7 @@ Your token looks like: `up:yeah:xxxxxxxxxxxxxxxxxxxx`
 
 **Option A — Visit the web app (easiest)**
 
-Open **[jamesbedwell.github.io/up-wealth](https://jamesbedwell.github.io/up-wealth)** in your browser — no download or installation required.
+Open **[upzen-co.github.io/up-wealth](https://upzen-co.github.io/up-wealth)** in your browser — no download or installation required.
 
 **Option B — Download and run locally**
 
