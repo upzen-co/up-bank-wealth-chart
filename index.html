@@ -137,6 +137,9 @@
   .action-btn-danger { color: var(--negative); border-color: rgba(224,92,92,0.2); }
   .action-btn-danger:hover { background: rgba(224,92,92,0.07); color: var(--negative); border-color: rgba(224,92,92,0.3); }
 
+  .action-btn:disabled { opacity: 0.5; pointer-events: none; }
+  .action-btn.spinning svg { animation: spin 0.8s linear infinite; }
+
   /* ── Layout ── */
   .content {
     padding: 24px 20px;
@@ -483,6 +486,10 @@
     </div>
   </a>
   <div class="header-actions hidden" id="header-actions">
+    <button class="action-btn" id="refresh-btn" onclick="refresh()">
+      <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
+      Refresh
+    </button>
     <button class="action-btn" id="resync-btn" onclick="promptResync()">
       <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
       Resync
@@ -591,7 +598,7 @@
 </div>
 
 <footer class="app-footer">
-  <span>v1.0.7</span>
+  <span>v1.0.8</span>
   <span class="footer-sep">·</span>
   <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
   <span class="footer-sep">·</span>
@@ -602,7 +609,7 @@
 const BASE        = 'https://api.up.com.au/api/v1';
 const TOKEN_KEY   = 'upwealth_token';
 const LS_LEGACY   = 'upwealth_v3';    // old localStorage key — migrated on first load
-const APP_VERSION = '1.0.7';          // bump this with every GitHub Pages publish
+const APP_VERSION = '1.0.8';          // bump this with every GitHub Pages publish
 const DB_NAME     = 'upwealth_db';
 const DB_STORE    = 'cache';
 const DB_KEY      = 'main';
@@ -1152,10 +1159,18 @@ async function connect() {
   await fetchAndRender();
 }
 
-async function refresh() {
-  const btn = document.getElementById('resync-btn');
+let _refreshing = false;
+
+// Incremental refresh: fetch only transactions newer than the cached
+// newestSettledAt and merge them in. `silent` = auto-check on page open —
+// failures (e.g. offline) keep the cached dashboard instead of erroring.
+async function refresh(silent = false) {
+  if (_refreshing) return;
+  _refreshing = true;
+  const btn = document.getElementById('refresh-btn');
   if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
   try {
+    resetProgress();
     setMsg('Refreshing accounts…');
     const accounts = await fetchAll('/accounts');
     const cache = await loadCache();
@@ -1182,15 +1197,24 @@ async function refresh() {
     badge.textContent = 'Updated just now';
     badge.classList.remove('hidden');
   } catch (e) {
-    const isCors = e.message === 'Failed to fetch'
-      || e.message.includes('NetworkError')
-      || e.message.includes('network');
-    document.getElementById('err-title').textContent = isCors ? 'Network error' : 'Refresh failed';
-    document.getElementById('err-msg').textContent = isCors
-      ? 'Could not reach the Up API.'
-      : e.message;
-    show('error-screen');
+    if (_prog.tickerId) { clearInterval(_prog.tickerId); _prog.tickerId = null; }
+    document.getElementById('progress-wrap')?.classList.add('hidden');
+    if (silent) {
+      // Auto-refresh on open failed (offline, expired token, …) — keep the
+      // cached dashboard; the user can retry manually with the Refresh button.
+      console.warn('Auto-refresh failed:', e);
+    } else {
+      const isCors = e.message === 'Failed to fetch'
+        || e.message.includes('NetworkError')
+        || e.message.includes('network');
+      document.getElementById('err-title').textContent = isCors ? 'Network error' : 'Refresh failed';
+      document.getElementById('err-msg').textContent = isCors
+        ? 'Could not reach the Up API.'
+        : e.message;
+      show('error-screen');
+    }
   } finally {
+    _refreshing = false;
     if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
   }
 }
@@ -1545,11 +1569,13 @@ async function resumeLoad(partial) {
     if (token) document.getElementById('token-input').value = token;
 
     if (raw.loadComplete && raw.txs?.length) {
-      // Normal path — complete cache, show dashboard immediately
+      // Normal path — complete cache, show dashboard immediately, then
+      // silently check for transactions newer than the cache in the background
       const series = buildSeries(raw.accounts, raw.txs);
       renderDashboard(raw.accounts, series, raw.ts);
       show('dashboard');
       hasDashboard = true;
+      if (token) refresh(true);
     } else if (!raw.loadComplete && raw.accounts && raw.txs?.length && token) {
       // Crash recovery — partial load detected, auto-resume
       show('loading');

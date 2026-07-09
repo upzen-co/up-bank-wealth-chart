@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.8] - 2026-07-10
+
+### Added
+- **Auto-refresh on open** — when the page loads with a complete cache, it now silently checks the Up API for transactions newer than the most recent cached one and merges them in. If the check fails (offline, expired token), the cached dashboard stays up and a console warning is logged instead of an error screen.
+- **Refresh button** — new header button that runs the same incremental check on demand: fetches only transactions since the last cached `newestSettledAt` and merges them, showing a spinner on the button while it runs. Distinct from **Resync**, which still clears the cache and re-downloads everything.
+
+### Fixed
+- `refresh()` existed in the codebase but was unreachable from the UI, referenced the wrong button id, and could leak the progress-ticker interval on error. It is now wired to the Refresh button, guarded against concurrent runs, and cleans up the progress UI on failure.
+
+---
+
 ## [1.0.7] - 2026-06-01
 
 ### Added
