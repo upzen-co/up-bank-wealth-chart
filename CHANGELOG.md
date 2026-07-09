@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.9] - 2026-07-10
+
+### Changed
+- **Mobile layout** — Balance stat now spans the full width with a larger figure, with Change and Accounts splitting the row below (desktop keeps the 3-across row). Header action buttons collapse to icons on phones so all three fit at 390px. Slightly tighter page and chart-card padding gives the chart more width on phones, and the chart is taller (240px).
+- **Chart style** — smoother monotone line interpolation (no overshoot dips), gradient fill sized to the live chart area, dashed crosshair under the touched point, themed tooltip with a formatted date title (e.g. "12 Mar 2025"), hover point with a card-coloured ring, much subtler year/quarter dividers and horizontal grid lines, and compact y-axis labels ($12.5k, cents shown only on tiny ranges) that keep the axis narrow and never duplicate.
+- **Date range header** — now formatted ("1 Jan 2024 → 10 Jul 2026") instead of raw ISO dates.
+
+### Fixed
+- **Pinch to zoom** — now anchors at the fingers' midpoint instead of the view centre, and lifting both fingers after a pinch no longer registers as a double-tap that instantly reset the zoom. Double-tap reset now only fires on two genuine quick taps.
+- **Panning** — added: one-finger horizontal drag pans the zoomed chart on touch (vertical swipes still scroll the page — the canvas uses `touch-action: pan-y` instead of `none`), mouse drag and horizontal trackpad swipe pan on desktop, and trackpad pinch / ctrl+wheel zooms anchored at the cursor. Double-click resets on desktop.
+- **X-axis ticks when zoomed** — tick placement now looks only at the visible window, so a zoomed-in view always has labels; tight zooms switch to day-level labels ("12 Mar").
+- **Accounts grid** — columns use `minmax(0, 1fr)` so a long balance can no longer stretch its card wider than half; both cards are always equal halves. Balances that still don't fit are ellipsised.
+
+---
+
 ## [1.0.8] - 2026-07-10
 
 ### Added

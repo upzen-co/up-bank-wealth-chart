@@ -139,10 +139,16 @@
 
   .action-btn:disabled { opacity: 0.5; pointer-events: none; }
   .action-btn.spinning svg { animation: spin 0.8s linear infinite; }
+  /* Phone: icon-only header buttons so all three fit */
+  @media (max-width: 767px) {
+    .action-btn { padding: 8px 10px; }
+    .action-btn svg { width: 15px; height: 15px; }
+    .action-btn .action-label { display: none; }
+  }
 
   /* ── Layout ── */
   .content {
-    padding: 24px 20px;
+    padding: 20px 16px;
     max-width: 520px;
     margin: 0 auto;
   }
@@ -321,9 +327,17 @@
   }
 
   /* ── Stat cards ── */
+  /* Phone: Balance spans the full row, Change + Accounts split the second row */
   .stats-grid {
-    display: grid; grid-template-columns: repeat(3,1fr);
+    display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
     gap: 8px; margin-bottom: 14px;
+  }
+  .stat-card:first-child { grid-column: 1 / -1; }
+  .stat-card:first-child .stat-value { font-size: 27px; }
+  @media (min-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .stat-card:first-child { grid-column: auto; }
+    .stat-card:first-child .stat-value { font-size: 17px; }
   }
   .stat-card {
     background: var(--card);
@@ -340,16 +354,19 @@
     letter-spacing: -0.03em; line-height: 1.1;
     color: var(--text);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
   /* ── Chart ── */
   .chart-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 18px; padding: 16px 14px 12px;
+    border-radius: 18px; padding: 14px 10px 10px;
   }
-  .chart-wrap { position: relative; width: 100%; height: 210px; }
-  .chart-wrap canvas { touch-action: none; }
+  @media (min-width: 768px) { .chart-card { padding: 16px 14px 12px; } }
+  .chart-wrap { position: relative; width: 100%; height: 240px; }
+  /* pan-y: vertical swipes still scroll the page; horizontal drag + pinch are ours */
+  .chart-wrap canvas { touch-action: pan-y; }
   @media (min-width: 768px)  { .chart-wrap { height: 300px; } }
   @media (min-width: 1024px) { .chart-wrap { height: 320px; } }
   @media (min-width: 1400px) { .chart-wrap { height: 360px; } }
@@ -369,7 +386,8 @@
     .section-label { margin-top: 2px; }
   }
   .accounts-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    /* minmax(0,1fr) so a long balance can't stretch its column — always equal halves */
+    display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px;
   }
   @media (min-width: 768px) {
     .dash-right .accounts-grid { grid-template-columns: 1fr; }
@@ -389,6 +407,7 @@
     font-size: 16px; font-weight: 600;
     letter-spacing: -0.03em; color: var(--text);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
   /* ── Modal ── */
@@ -486,17 +505,17 @@
     </div>
   </a>
   <div class="header-actions hidden" id="header-actions">
-    <button class="action-btn" id="refresh-btn" onclick="refresh()">
+    <button class="action-btn" id="refresh-btn" onclick="refresh()" aria-label="Refresh">
       <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
-      Refresh
+      <span class="action-label">Refresh</span>
     </button>
-    <button class="action-btn" id="resync-btn" onclick="promptResync()">
+    <button class="action-btn" id="resync-btn" onclick="promptResync()" aria-label="Resync">
       <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-      Resync
+      <span class="action-label">Resync</span>
     </button>
-    <button class="action-btn action-btn-danger" onclick="promptDisconnect()">
+    <button class="action-btn action-btn-danger" onclick="promptDisconnect()" aria-label="Disconnect">
       <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      Disconnect
+      <span class="action-label">Disconnect</span>
     </button>
   </div>
 </header>
@@ -598,7 +617,7 @@
 </div>
 
 <footer class="app-footer">
-  <span>v1.0.8</span>
+  <span>v1.0.9</span>
   <span class="footer-sep">·</span>
   <a href="https://github.com/upzen-co/up-bank-wealth-chart#readme" target="_blank">About</a>
   <span class="footer-sep">·</span>
@@ -609,7 +628,7 @@
 const BASE        = 'https://api.up.com.au/api/v1';
 const TOKEN_KEY   = 'upwealth_token';
 const LS_LEGACY   = 'upwealth_v3';    // old localStorage key — migrated on first load
-const APP_VERSION = '1.0.8';          // bump this with every GitHub Pages publish
+const APP_VERSION = '1.0.9';          // bump this with every GitHub Pages publish
 const DB_NAME     = 'upwealth_db';
 const DB_STORE    = 'cache';
 const DB_KEY      = 'main';
@@ -721,6 +740,13 @@ function completeProgress() {
 
 function fmtAUD(cents) {
   return (cents / 100).toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2 });
+}
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// '2025-03-12' → '12 Mar 2025'
+function fmtDateLabel(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${d} ${MONTHS_SHORT[m - 1]} ${y}`;
 }
 
 function localToday() {
@@ -1259,7 +1285,7 @@ function renderDashboard(accounts, series, cacheTs) {
   }
   document.getElementById('stat-accounts').textContent = personalAccounts.length;
   document.getElementById('date-range').textContent = hasHistory
-    ? `${series[0].date}  →  ${series[series.length - 1].date}`
+    ? `${fmtDateLabel(series[0].date)}  →  ${fmtDateLabel(series[series.length - 1].date)}`
     : 'Loading history…';
 
   const badge = document.getElementById('cache-badge');
@@ -1297,10 +1323,16 @@ function renderDashboard(accounts, series, cacheTs) {
 
   // First render — create chart
   const ctx = document.getElementById('wealth-chart').getContext('2d');
-  const grad = ctx.createLinearGradient(0, 0, 0, 300);
-  const accentRgb = isDark ? '76,174,80' : '76,174,80';
-  grad.addColorStop(0, `rgba(${accentRgb},0.22)`);
-  grad.addColorStop(1, `rgba(${accentRgb},0.0)`);
+  // Gradient fill sized to the live chart area — tracks resizes and zoom
+  const areaGradient = c => {
+    const { ctx, chartArea } = c.chart;
+    if (!chartArea) return 'rgba(76,174,80,0.12)';
+    const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    g.addColorStop(0,   'rgba(76,174,80,0.25)');
+    g.addColorStop(0.6, 'rgba(76,174,80,0.07)');
+    g.addColorStop(1,   'rgba(76,174,80,0)');
+    return g;
+  };
 
   // ─── Quarter / new-year grid lines ──────────────────────────────────────────
   const quarterGridPlugin = {
@@ -1322,13 +1354,13 @@ function renderDashboard(accounts, series, cacheTs) {
         ctx.moveTo(x, chartArea.top);
         ctx.lineTo(x, chartArea.bottom);
         if (isNewYear) {
-          // Solid, clearly visible year divider
-          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.22)';
-          ctx.lineWidth = 1.5;
+          // Solid year divider — visible but not louder than the data line
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.15)';
+          ctx.lineWidth = 1;
           ctx.setLineDash([]);
         } else {
-          // Dashed quarter divider — subtler but still legible in dark mode
-          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)';
+          // Dashed quarter divider — a whisper
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.05)';
           ctx.lineWidth = 1;
           ctx.setLineDash([3, 4]);
         }
@@ -1339,7 +1371,26 @@ function renderDashboard(accounts, series, cacheTs) {
     }
   };
 
-  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // Dashed vertical line under the touched/hovered point
+  const crosshairPlugin = {
+    id: 'crosshair',
+    afterDatasetsDraw(chart) {
+      const active = chart.tooltip?.getActiveElements?.() || [];
+      if (!active.length) return;
+      const { ctx, chartArea } = chart;
+      const x = active[0].element.x;
+      if (x < chartArea.left || x > chartArea.right) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
 
   chartInst = new Chart(ctx, {
     type: 'line',
@@ -1349,15 +1400,18 @@ function renderDashboard(accounts, series, cacheTs) {
         data: values,
         borderColor: '#4cae50',
         borderWidth: 2,
-        backgroundColor: grad,
+        backgroundColor: areaGradient,
         fill: true,
-        tension: 0.35,
+        cubicInterpolationMode: 'monotone',
         pointRadius: 0,
         pointHoverRadius: 4,
-        pointHitRadius: 10,
+        pointHoverBackgroundColor: '#4cae50',
+        pointHoverBorderColor: isDark ? '#252525' : '#ffffff',
+        pointHoverBorderWidth: 2,
+        pointHitRadius: 12,
       }]
     },
-    plugins: [quarterGridPlugin],
+    plugins: [quarterGridPlugin, crosshairPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -1365,53 +1419,67 @@ function renderDashboard(accounts, series, cacheTs) {
       plugins: {
         legend: { display: false },
         tooltip: {
+          backgroundColor: isDark ? '#252525' : '#ffffff',
+          borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)',
+          borderWidth: 1,
+          titleColor: isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.5)',
+          bodyColor: isDark ? '#ffffff' : '#1a1a1a',
+          titleFont: { size: 11, weight: 600 },
+          bodyFont: { size: 14, weight: 600 },
+          padding: 10,
+          cornerRadius: 10,
+          caretSize: 5,
+          displayColors: false,
           callbacks: {
-            title: t => t[0].label,
-            label: c => ' ' + c.raw.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })
+            title: t => fmtDateLabel(t[0].label),
+            label: c => c.raw.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' })
           }
         }
       },
       scales: {
         x: {
-          // ── Smart tick placement ───────────────────────────────────────────
+          // ── Smart tick placement (aware of the zoomed window) ──────────────
           // Priority 1: year boundaries (Jan 1 → "2024")
           // Priority 2: quarters (Apr/Jul/Oct 1 → "Q2/Q3/Q4") if space allows
-          // Fallback: Chart.js auto-ticks with abbreviated month labels (zoomed in)
+          // Fallbacks: months, then "12 Mar" day labels for tight zooms
           afterBuildTicks(scale) {
             const allLabels = scale.chart.data.labels || [];
             if (!allLabels.length) return;
-            const w = scale.chart.width || 300;
+            // Only consider labels inside the visible (possibly zoomed) window
+            const lo = Math.max(0, Math.floor(scale.min ?? 0));
+            const hi = Math.min(allLabels.length - 1, Math.ceil(scale.max ?? allLabels.length - 1));
+            const w = scale.chart.chartArea?.width || scale.chart.width || 300;
 
             const yearIdx = [], quarterIdx = [];
             // monthFirst: first index seen for each "YYYY-MM" key — guarantees 1 per month
             const monthFirst = {};
-
-            allLabels.forEach((lbl, i) => {
-              const [year, mm, dd] = lbl.split('-').map(Number);
+            for (let i = lo; i <= hi; i++) {
+              const [year, mm, dd] = allLabels[i].split('-').map(Number);
               if (mm === 1 && dd === 1) yearIdx.push(i);
               else if (dd === 1 && (mm === 4 || mm === 7 || mm === 10)) quarterIdx.push(i);
               const mk = `${year}-${mm}`;
               if (!(mk in monthFirst)) monthFirst[mk] = i;
-            });
-
-            if (yearIdx.length > 0) {
-              // Long history: years always shown, quarters if space allows
-              const totalWithQ = yearIdx.length + quarterIdx.length;
-              const showQ = totalWithQ * 58 < w;
-              const chosen = showQ
-                ? [...yearIdx, ...quarterIdx].sort((a, b) => a - b)
-                : yearIdx;
-              scale.ticks = chosen.map(v => ({ value: v, label: allLabels[v] }));
-            } else {
-              // Short/zoomed range: show months, max 1 per month, thinned if crowded
-              const monthIdx = Object.values(monthFirst).sort((a, b) => a - b);
-              if (!monthIdx.length) return;
-              const maxTicks = Math.max(1, Math.floor(w / 58));
-              const step = Math.max(1, Math.ceil(monthIdx.length / maxTicks));
-              scale.ticks = monthIdx
-                .filter((_, i) => i % step === 0)
-                .map(v => ({ value: v, label: allLabels[v] }));
             }
+            const monthIdx = Object.values(monthFirst).sort((a, b) => a - b);
+
+            let chosen;
+            scale._dayTicks = false;
+            if (hi - lo <= 45 || monthIdx.length <= 2) {
+              // Tight zoom or short history: evenly spaced day labels
+              scale._dayTicks = true;
+              const step = Math.max(1, Math.ceil((hi - lo) / Math.max(2, Math.floor(w / 64))));
+              chosen = [];
+              for (let i = lo; i <= hi; i += step) chosen.push(i);
+            } else if (yearIdx.length > 0) {
+              // Long window: years always shown, quarters if space allows
+              const showQ = (yearIdx.length + quarterIdx.length) * 58 < w;
+              chosen = showQ ? [...yearIdx, ...quarterIdx].sort((a, b) => a - b) : yearIdx;
+            } else {
+              // Mid window: months, thinned if crowded
+              const step = Math.max(1, Math.ceil(monthIdx.length / Math.max(1, Math.floor(w / 58))));
+              chosen = monthIdx.filter((_, i) => i % step === 0);
+            }
+            scale.ticks = chosen.map(v => ({ value: v, label: allLabels[v] }));
           },
           ticks: {
             color: isDark ? '#999' : '#aaa',
@@ -1421,6 +1489,7 @@ function renderDashboard(accounts, series, cacheTs) {
               const lbl = this.getLabelForValue(val);
               if (!lbl) return '';
               const [year, month, day] = lbl.split('-').map(Number);
+              if (this._dayTicks) return `${day} ${MONTHS_SHORT[month - 1]}`;
               if (month === 1 && day === 1) return String(year);
               const qMap = { 4: 'Q2', 7: 'Q3', 10: 'Q4' };
               if (qMap[month] && day === 1) return qMap[month];
@@ -1434,66 +1503,165 @@ function renderDashboard(accounts, series, cacheTs) {
           ticks: {
             color: isDark ? '#999' : '#aaa',
             font: { size: 10 },
-            callback: v => '$' + v.toLocaleString('en-AU', { maximumFractionDigits: 0 })
+            maxTicksLimit: 5,
+            // Compact labels ($12.5k) keep the axis narrow on phones
+            callback: v => {
+              const sign = v < 0 ? '-' : '';
+              const a = Math.abs(v);
+              if (a >= 1000000) return sign + '$' + (a / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+              if (a >= 1000)    return sign + '$' + (a / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+              // Cents matter only when the axis range is tiny
+              return sign + '$' + a.toLocaleString('en-AU', { maximumFractionDigits: a && a < 10 ? 2 : 0 });
+            }
           },
-          // Clearly visible horizontal grid lines in both modes
-          grid: { color: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)' },
+          grid: { color: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
           border: { display: false }
         }
       }
     }
   });
 
-  // ─── Pinch-to-zoom (double-tap to reset) ─────────────────────────────────────
+  // ─── Chart gestures ───────────────────────────────────────────────────────
+  // Touch: pinch to zoom (anchored at the fingers' midpoint), one-finger drag
+  // to pan when zoomed, double-tap to reset.
+  // Mouse/trackpad: drag to pan when zoomed, trackpad pinch (ctrl+wheel) or
+  // horizontal swipe, double-click to reset.
   const canvas = document.getElementById('wealth-chart');
-  let touchStartDist = null, zoomStartMin = null, zoomStartMax = null;
+  const MIN_SPAN = 6;
 
-  function pinchDist(e) {
-    const [a, b] = e.touches;
-    return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+  const labelCount   = () => chartInst.data.labels.length;
+  const xOpts        = () => chartInst.options.scales.x;
+  const currentRange = () => [xOpts().min ?? 0, xOpts().max ?? labelCount() - 1];
+  const isZoomed     = () => { const [lo, hi] = currentRange(); return lo > 0 || hi < labelCount() - 1; };
+  const canvasX      = clientX => clientX - canvas.getBoundingClientRect().left;
+
+  function syncCursor() { canvas.style.cursor = isZoomed() ? 'grab' : ''; }
+
+  // Clamp to the data and apply; a window covering everything clears the zoom
+  function setRange(min, max) {
+    const n = labelCount();
+    if (n < 2) return;
+    const span = Math.min(n - 1, Math.max(MIN_SPAN, Math.round(max - min)));
+    const lo = Math.max(0, Math.min(Math.round(min), n - 1 - span));
+    const o = xOpts();
+    if (lo === 0 && span === n - 1) { o.min = undefined; o.max = undefined; }
+    else { o.min = lo; o.max = lo + span; }
+    chartInst.update('none');
+    syncCursor();
   }
+
+  function resetZoom() {
+    const o = xOpts();
+    o.min = undefined; o.max = undefined;
+    chartInst.update();
+    syncCursor();
+  }
+
+  // Fractional position (0–1) of a canvas-relative pixel inside the plot area
+  function areaFrac(px) {
+    const area = chartInst.chartArea;
+    if (!area) return 0.5;
+    return (px - area.left) / Math.max(1, area.width);
+  }
+
+  let pinch = null;                  // { dist, span, focalIdx }
+  let drag  = null;                  // { x, lo, hi }
+  let tapStart = null, hadGesture = false, lastTap = 0;
 
   canvas.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
       e.preventDefault();
-      touchStartDist = pinchDist(e);
-      const xs = chartInst.scales.x;
-      zoomStartMin = xs.min ?? 0;
-      zoomStartMax = xs.max ?? (labels.length - 1);
+      hadGesture = true;
+      drag = null;
+      const [a, b] = e.touches;
+      const [lo, hi] = currentRange();
+      pinch = {
+        dist: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY),
+        span: hi - lo,
+        focalIdx: lo + areaFrac(canvasX((a.clientX + b.clientX) / 2)) * (hi - lo),
+      };
+    } else if (e.touches.length === 1) {
+      hadGesture = false;
+      const t = e.touches[0];
+      tapStart = { x: t.clientX, y: t.clientY, t: Date.now() };
+      const [lo, hi] = currentRange();
+      drag = { x: t.clientX, lo, hi };
     }
   }, { passive: false });
 
   canvas.addEventListener('touchmove', e => {
-    if (e.touches.length === 2 && touchStartDist !== null) {
+    if (e.touches.length === 2 && pinch) {
       e.preventDefault();
-      const scale = touchStartDist / pinchDist(e);
-      const center = (zoomStartMin + zoomStartMax) / 2;
-      const range  = (zoomStartMax - zoomStartMin) * scale;
-      const newMin = Math.max(0, Math.round(center - range / 2));
-      const newMax = Math.min(labels.length - 1, Math.round(center + range / 2));
-      if (newMax - newMin >= 6) {
-        chartInst.options.scales.x.min = newMin;
-        chartInst.options.scales.x.max = newMax;
-        chartInst.update('none');
-      }
+      const [a, b] = e.touches;
+      const dist = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+      const span = pinch.span * (pinch.dist / Math.max(1, dist));
+      // Keep the label under the fingers' midpoint fixed while zooming/panning
+      const frac = areaFrac(canvasX((a.clientX + b.clientX) / 2));
+      const lo = pinch.focalIdx - frac * span;
+      setRange(lo, lo + span);
+    } else if (e.touches.length === 1 && drag && isZoomed()) {
+      const dx = e.touches[0].clientX - drag.x;
+      if (!hadGesture && Math.abs(dx) < 8) return; // let vertical page scroll win
+      hadGesture = true;
+      e.preventDefault();
+      const shift = dx / Math.max(1, chartInst.chartArea?.width || 300) * (drag.hi - drag.lo);
+      setRange(drag.lo - shift, drag.hi - shift);
     }
   }, { passive: false });
 
   canvas.addEventListener('touchend', e => {
-    if (e.touches.length < 2) touchStartDist = null;
+    if (e.touches.length < 2) pinch = null;
+    if (e.touches.length > 0) return;
+    drag = null;
+    // Double-tap reset — only two genuine quick taps count, never pinch/pan ends
+    const t = e.changedTouches[0];
+    const isTap = !hadGesture && tapStart && t
+      && Math.hypot(t.clientX - tapStart.x, t.clientY - tapStart.y) < 12
+      && Date.now() - tapStart.t < 350;
+    if (isTap && Date.now() - lastTap < 320) { resetZoom(); lastTap = 0; }
+    else lastTap = isTap ? Date.now() : 0;
+    tapStart = null;
   });
 
-  // Double-tap to reset zoom
-  let lastTap = 0;
-  canvas.addEventListener('touchend', () => {
-    const now = Date.now();
-    if (now - lastTap < 320) {
-      chartInst.options.scales.x.min = undefined;
-      chartInst.options.scales.x.max = undefined;
-      chartInst.update();
-    }
-    lastTap = now;
+  canvas.addEventListener('mousedown', e => {
+    if (!isZoomed()) return;
+    e.preventDefault();
+    const [lo, hi] = currentRange();
+    const startX = e.clientX;
+    canvas.style.cursor = 'grabbing';
+    const onMove = ev => {
+      const shift = (ev.clientX - startX) / Math.max(1, chartInst.chartArea?.width || 300) * (hi - lo);
+      setRange(lo - shift, hi - shift);
+      canvas.style.cursor = 'grabbing';
+    };
+    const onUp = () => {
+      syncCursor();
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   });
+
+  canvas.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) {
+      // Trackpad pinch arrives as ctrl+wheel — zoom anchored at the cursor
+      e.preventDefault();
+      const [lo, hi] = currentRange();
+      const span = (hi - lo) * Math.exp(e.deltaY * 0.008);
+      const frac = areaFrac(canvasX(e.clientX));
+      const focal = lo + frac * (hi - lo);
+      setRange(focal - frac * span, focal + (1 - frac) * span);
+    } else if (isZoomed() && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      // Horizontal trackpad swipe pans when zoomed; vertical scroll passes through
+      e.preventDefault();
+      const [lo, hi] = currentRange();
+      const shift = e.deltaX / Math.max(1, chartInst.chartArea?.width || 300) * (hi - lo);
+      setRange(lo + shift, hi + shift);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('dblclick', resetZoom);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
